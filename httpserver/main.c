@@ -21,6 +21,10 @@ typedef struct http_request {
 
 
 int process_request_get(const struct http_request* request, char* response) {
+	strcat(response, "HTTP/1.0 200 OK\r\n");
+	strcat(response, "Server: myserver\r\n");
+	strcat(response, "Content-Type: text/html\r\n");
+	strcat(response, "\r\n\r\n");
 	return 1;
 }
 
@@ -46,8 +50,8 @@ int process_request(const struct http_request* request, char* response) {
 	} else if( strcmp(request->method, "DELETE") == 0 ) {
 		return process_request_delete(request, response);
 	}
-	
-	return -1;
+
+	return 1;
 }
 
 char* tokenizing_multi_character_delim(char* dst, char* src, char* delim) {
@@ -69,7 +73,7 @@ void parsing_http_request(struct http_request* request, char* message) {
 	last = tokenizing_multi_character_delim(request->version, last, "\r\n");
 	last = tokenizing_multi_character_delim(header_part, last, "\r\n\r\n");
 	last = tokenizing_multi_character_delim(request->body, last, "\r\n");
-
+	
 	request->header_count = 0;
 	char *tok = strtok(header_part, "\n");
 	while(tok != NULL) {
@@ -98,6 +102,10 @@ void clear_recv_buffer(int sock_client) {
 	read(sock_client, buffer, MAX_LENGTH);
 }
 
+void print_error(const char* content) {
+	fprintf(stderr, "%s\n", content);
+}
+
 int main() {
 	printf("start\n");
 	
@@ -107,26 +115,33 @@ int main() {
 	servaddr.sin_addr.s_addr = htons(INADDR_ANY);
 	servaddr.sin_port = htons(PORT);
 	
-	int listen_fd, comm_fd;
-	listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-	bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr));
+	int opt_sock_reuse = 1;
+	struct timeval tv_timeout = { 3, 500000 };
+	int sock_listen, sock_client;
+	sock_listen = socket(AF_INET, SOCK_STREAM, 0);
+	if( setsockopt(sock_listen, SOL_SOCKET, SO_REUSEADDR, (char *)&opt_sock_reuse, (int)sizeof(opt_sock_reuse)) ) {
+		print_error("failed to setsockopt");
+		return 1;
+	}
+	
+	bind(sock_listen, (struct sockaddr *) &servaddr, sizeof(servaddr));
 	
 	printf("start listen\n");
-	listen(listen_fd, 10);
-	if( listen_fd < 0 ) {
+	listen(sock_listen, 10);
+	if( sock_listen < 0 ) {
 		printf("failed to create listening socket\n");
 		return 0;
 	}
 	
 	while(1) {
-		comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
-		if( comm_fd < 0 ) {
+		sock_client = accept(sock_listen, (struct sockaddr*) NULL, NULL);
+		if( sock_client < 0 ) {
 			printf("failed to create client socket\n");
 			return 0;
 		}
 		
 		char str[MAX_LENGTH] = { 0, };
-		if( ! read_all_data(comm_fd, str) ) {
+		if( ! read_all_data(sock_client, str) ) {
 			return 0;
 		}
 		
@@ -137,12 +152,12 @@ int main() {
 		if( process_request(&request, response) < 0 ) {
 			printf("failed to process request\n");
 		} else {
-			write(comm_fd, response, strlen(response));
+			write(sock_client, response, strlen(response));
 		}
 		
-		shutdown(comm_fd, SHUT_WR);
-		clear_recv_buffer(comm_fd);
-		close(comm_fd);
+		shutdown(sock_client, SHUT_WR);
+		clear_recv_buffer(sock_client);
+		close(sock_client);
 	}
 	
 	return 0;
