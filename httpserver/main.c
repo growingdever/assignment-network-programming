@@ -116,7 +116,6 @@ int main() {
 	servaddr.sin_port = htons(PORT);
 	
 	int opt_sock_reuse = 1;
-	struct timeval tv_timeout = { 3, 500000 };
 	int sock_listen, sock_client;
 	sock_listen = socket(AF_INET, SOCK_STREAM, 0);
 	if( setsockopt(sock_listen, SOL_SOCKET, SO_REUSEADDR, (char *)&opt_sock_reuse, (int)sizeof(opt_sock_reuse)) ) {
