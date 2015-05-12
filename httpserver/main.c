@@ -75,6 +75,8 @@ int print_list_of_files(const char* path, char* response) {
 	response[strlen(response) - 1] = 0;
 	strcat(response, "]");
 
+	pclose(process_fp);
+
 	return 1;
 }
 
@@ -98,6 +100,8 @@ int print_content_of_file(const char* path, char* response) {
 	while(fgets(buffer, MAX_LENGTH, fp) != NULL) {
 		strcat(response, buffer);
 	}
+
+	fclose(fp);
 
 	return 1;
 }
