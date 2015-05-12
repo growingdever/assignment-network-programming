@@ -135,6 +135,7 @@ int main() {
 		}
 		
 		http_request request;
+		memset(&request, 0, sizeof(request));
 		parsing_http_request(&request, str);
 		
 		char response[MAX_LENGTH] = { 0, };
