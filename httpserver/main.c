@@ -46,43 +46,42 @@ int process_request(const struct http_request* request, char* response) {
 	} else if( strcmp(request->method, "DELETE") == 0 ) {
 		return process_request_delete(request, response);
 	}
-
+	
 	return -1;
 }
 
+char* tokenizing_multi_character_delim(char* dst, char* src, char* delim) {
+	char *next = strstr(src, delim);
+	if( next == NULL ) {
+		strcpy(dst, src);
+		return NULL;
+	}
+	strncpy(dst, src, next - src);
+	return next + strlen(delim);
+}
+
 void parsing_http_request(struct http_request* request, char* message) {
-	// printf("%s\n", message);
-	char *last;
-	last = strtok(message, " ");
-	strcpy(request->method, last);
-
-	last = strtok(NULL, " ");
-	strcpy(request->url, last);
-
-	last = strtok(NULL, "\n");
-	strcpy(request->version, last);
-
-	last += strlen(last) + 1;
-	char *body = strstr(last, "\n\n") + 2;
-	strcpy(request->body, body);
-
-	char header[MAX_LENGTH] = { 0, };
-	strncpy(header, last, body - last - 2);
+	char *last = message;
+	char header_part[MAX_LENGTH] = { 0, };
+	
+	last = tokenizing_multi_character_delim(request->method, last, " ");
+	last = tokenizing_multi_character_delim(request->url, last, " ");
+	last = tokenizing_multi_character_delim(request->version, last, "\r\n");
+	last = tokenizing_multi_character_delim(header_part, last, "\r\n\r\n");
+	last = tokenizing_multi_character_delim(request->body, last, "\r\n");
 
 	request->header_count = 0;
-	char *tok = strtok(header, "\n");
+	char *tok = strtok(header_part, "\n");
 	while(tok != NULL) {
 		strcpy(request->headers[request->header_count++], tok);
 		tok = strtok(NULL, "\n");
 	}
-
-	strcpy(request->body, body);
 }
 
 int read_all_data(int sock_client, char* buffer) {
 	char *tmp = buffer;
 	ssize_t ret, len;
-	while ((ret = read (sock_client, tmp, MAX_LENGTH) != 0)) { 
+	while ((ret = read (sock_client, tmp, MAX_LENGTH) != 0)) {
 		if (ret == -1) {
 			fprintf(stderr, "read error\n");
 			return 0;
@@ -90,7 +89,7 @@ int read_all_data(int sock_client, char* buffer) {
 		tmp += ret;
 		len += ret;
 	}
-
+	
 	return len;
 }
 
@@ -101,50 +100,50 @@ void clear_recv_buffer(int sock_client) {
 
 int main() {
 	printf("start\n");
-
+	
 	struct sockaddr_in servaddr;
 	memset(&servaddr, 0, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_addr.s_addr = htons(INADDR_ANY);
-	servaddr.sin_port = htons(PORT); 
+	servaddr.sin_port = htons(PORT);
 	
 	int listen_fd, comm_fd;
 	listen_fd = socket(AF_INET, SOCK_STREAM, 0);
 	bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr));
- 
+	
 	printf("start listen\n");
 	listen(listen_fd, 10);
 	if( listen_fd < 0 ) {
 		printf("failed to create listening socket\n");
 		return 0;
 	}
- 
- 	while(1) {
- 		comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
+	
+	while(1) {
+		comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
 		if( comm_fd < 0 ) {
 			printf("failed to create client socket\n");
 			return 0;
 		}
-
+		
 		char str[MAX_LENGTH] = { 0, };
 		if( ! read_all_data(comm_fd, str) ) {
 			return 0;
 		}
-
+		
 		http_request request;
 		parsing_http_request(&request, str);
-
+		
 		char response[MAX_LENGTH] = { 0, };
 		if( process_request(&request, response) < 0 ) {
 			printf("failed to process request\n");
 		} else {
 			write(comm_fd, response, strlen(response));
 		}
-
+		
 		shutdown(comm_fd, SHUT_WR);
 		clear_recv_buffer(comm_fd);
 		close(comm_fd);
- 	}
-
+	}
+	
 	return 0;
 }
