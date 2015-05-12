@@ -116,14 +116,18 @@ int process_request_get(const struct http_request* request, char* response) {
 	}
 
 	if( (stat_buffer.st_mode & S_IFMT) == S_IFDIR ) {
-		print_list_of_files(path, response);
+		return print_list_of_files(path, response);
 	} else if( (stat_buffer.st_mode & S_IFMT) == S_IFREG ) {
-		print_content_of_file(path, response);
-	} else {
-		return -1;
+		return print_content_of_file(path, response);
 	}
 
-	return 1;
+
+	strcat(response, "HTTP/1.0 400 Bad Request\r\n");
+	strcat(response, "Server: myserver\r\n");
+	strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
+	strcat(response, "\r\n");
+
+	return -1;
 }
 
 int process_request_post(const struct http_request* request, char* response) {
