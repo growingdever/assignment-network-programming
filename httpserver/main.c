@@ -20,6 +20,36 @@ typedef struct http_request {
 } http_request;
 
 
+int process_request_get(const struct http_request* request, char* response) {
+	return 1;
+}
+
+int process_request_post(const struct http_request* request, char* response) {
+	return 1;
+}
+
+int process_request_put(const struct http_request* request, char* response) {
+	return 1;
+}
+
+int process_request_delete(const struct http_request* request, char* response) {
+	return 1;
+}
+
+int process_request(const struct http_request* request, char* response) {
+	if( strcmp(request->method, "GET") == 0 ) {
+		return process_request_get(request, response);
+	} else if( strcmp(request->method, "POST") == 0 ) {
+		return process_request_post(request, response);
+	} else if( strcmp(request->method, "PUT") == 0 ) {
+		return process_request_put(request, response);
+	} else if( strcmp(request->method, "DELETE") == 0 ) {
+		return process_request_delete(request, response);
+	}
+
+	return -1;
+}
+
 void parsing_http_request(struct http_request* request, char* message) {
 	// printf("%s\n", message);
 	char *last;
@@ -105,8 +135,11 @@ int main() {
 		parsing_http_request(&request, str);
 
 		char response[MAX_LENGTH] = { 0, };
-		sprintf(response, "HTTP/1.1 200 OK\r\n");
-		write(comm_fd, response, strlen(response));
+		if( process_request(&request, response) < 0 ) {
+			printf("failed to process request\n");
+		} else {
+			write(comm_fd, response, strlen(response));
+		}
 
 		shutdown(comm_fd, SHUT_WR);
 		clear_recv_buffer(comm_fd);
