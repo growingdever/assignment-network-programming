@@ -24,6 +24,25 @@ typedef struct http_request {
 void print_error(const char* content);
 
 
+void random_string(char *dest, int length) {
+	static const char alphanum[] = 
+		"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+    for (int i = 0; i < length; ++i) {
+        dest[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+    }
+
+    dest[length] = 0;
+}
+
+int is_directory(const struct stat stat_buffer) {
+	return (stat_buffer.st_mode & S_IFMT) == S_IFDIR;
+}
+
+int is_file(const struct stat stat_buffer) {
+	return (stat_buffer.st_mode & S_IFMT) == S_IFREG;
+}
+
 int print_list_of_files(const char* path, char* response) {
 	char process_str[MAX_LENGTH];
 	sprintf(process_str, "ls -al %s", path);
@@ -88,6 +107,7 @@ int print_content_of_file(const char* path, char* response) {
 		strcat(response, "Server: myserver\r\n");
 		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
 		strcat(response, "\r\n");
+		fclose(fp);
 		return -1;
 	}
 
@@ -131,6 +151,35 @@ int process_request_get(const struct http_request* request, char* response) {
 }
 
 int process_request_post(const struct http_request* request, char* response) {
+	char path[64];
+	sprintf(path, ".%s", request->url);
+
+	struct stat stat_buffer;
+	if( stat(path, &stat_buffer) == -1 ) {
+		strcat(response, "HTTP/1.0 404 Not Found\r\n");
+		strcat(response, "Server: myserver\r\n");
+		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
+		strcat(response, "\r\n");
+		return -1;
+	}
+
+	if( is_directory(stat_buffer) ) {
+		char new_filename[16];
+		random_string(new_filename, 8);
+
+		sprintf(path, ".%s/%s", request->url, new_filename);
+
+		FILE *new_fp = fopen(path, "w");
+		fprintf(new_fp, "%s", request->body);
+		fclose(new_fp);
+
+		strcat(response, "HTTP/1.0 201 Created\r\n");
+		strcat(response, "Server: myserver\r\n");
+		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
+		strcat(response, "\r\n");
+		strcat(response, request->body);
+	}
+
 	return 1;
 }
 
