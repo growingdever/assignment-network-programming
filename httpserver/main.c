@@ -10,16 +10,17 @@
 
 int read_all_data(int sock_client, char* buffer) {
 	char *tmp = buffer;
-	ssize_t ret;
+	ssize_t ret, len;
 	while ((ret = read (sock_client, tmp, MAX_LENGTH) != 0)) { 
 		if (ret == -1) {
 			fprintf(stderr, "read error\n");
 			return 0;
 		}
 		tmp += ret;
+		len += ret;
 	}
 
-	return 1;
+	return len;
 }
 
 int main() {
