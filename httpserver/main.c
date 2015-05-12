@@ -83,18 +83,8 @@ void parsing_http_request(struct http_request* request, char* message) {
 }
 
 int read_all_data(int sock_client, char* buffer) {
-	char *tmp = buffer;
-	ssize_t ret, len;
-	while ((ret = read (sock_client, tmp, MAX_LENGTH) != 0)) {
-		if (ret == -1) {
-			fprintf(stderr, "read error\n");
-			return 0;
-		}
-		tmp += ret;
-		len += ret;
-	}
-	
-	return len;
+	ssize_t len = recv(sock_client, buffer, MAX_LENGTH, 0);
+	return (int)len;
 }
 
 void clear_recv_buffer(int sock_client) {
