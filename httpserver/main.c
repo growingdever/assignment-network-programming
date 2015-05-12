@@ -4,8 +4,9 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 
-#define MAX_LENGTH 1000
+#define MAX_LENGTH 1024
 #define MAX_NUM_OF_HEADER 32
 #define PORT 8888
 
@@ -20,11 +21,75 @@ typedef struct http_request {
 } http_request;
 
 
-int process_request_get(const struct http_request* request, char* response) {
+void print_error(const char* content);
+
+
+int print_list_of_files(const char* url, char* response) {
+	char process_str[MAX_LENGTH];
+	sprintf(process_str, "ls -al .%s", url);
+	printf("%s\n", process_str);
+
+	char buffer[MAX_LENGTH];
+	FILE *process_fp = popen(process_str, "r");
+	if (process_fp == NULL)	{
+		return -1;
+	}
+
 	strcat(response, "HTTP/1.0 200 OK\r\n");
 	strcat(response, "Server: myserver\r\n");
-	strcat(response, "Content-Type: text/html\r\n");
-	strcat(response, "\r\n\r\n");
+	strcat(response, "Content-Type: application/json\r\n");
+	strcat(response, "\r\n[");
+	// remove first line
+	fgets(buffer, MAX_LENGTH, process_fp);
+	while(fgets(buffer, MAX_LENGTH, process_fp) != NULL) {
+		char *str_permission = strtok(buffer, " ");
+		char *str_link = strtok(NULL, " ");
+		char *str_owner = strtok(NULL, " ");
+		char *str_group = strtok(NULL, " ");
+		char *str_size = strtok(NULL, " ");
+		char *str_time = strtok(NULL, " ");
+		char *str_name = strtok(NULL, " ");
+
+		// printf("%s %s %s %s %s %s %s\n", str_permission, str_link, str_owner, str_group, str_size, str_time, str_name);
+
+		char tmp[MAX_LENGTH];
+		sprintf(tmp, "{ \
+				\"%s\" : \"%s\" \
+				\"%s\" : \"%s\" \
+				\"%s\" : \"%s\" \
+				\"%s\" : \"%s\" \
+				\"%s\" : \"%s\" \
+				\"%s\" : \"%s\" \
+				\"%s\" : \"%s\" \
+			},", 
+			"permission", str_permission, 
+			"link", str_link,
+			"owner", str_owner,
+			"group", str_group,
+			"size", str_size,
+			"time", str_time,
+			"name", str_name);
+		strcat(response, tmp);
+	}
+	// remove last comma
+	response[strlen(response) - 1] = 0;
+	strcat(response, "]");
+
+	return 1;
+}
+
+int process_request_get(const struct http_request* request, char* response) {
+	struct stat stat_buffer;
+	if( stat(request->url, &stat_buffer) == -1 ) {
+		return -1;
+	}
+
+	if( (stat_buffer.st_mode & S_IFMT) == S_IFDIR ) {
+		print_list_of_files(request->url, response);
+	} else if( (stat_buffer.st_mode & S_IFMT) == S_IFREG ) {
+
+	}
+
 	return 1;
 }
 
