@@ -64,6 +64,11 @@ int read_all_data(int sock_client, char* buffer) {
 	return len;
 }
 
+void clear_recv_buffer(int sock_client) {
+	char buffer[MAX_LENGTH];
+	read(sock_client, buffer, MAX_LENGTH);
+}
+
 int main() {
 	printf("start\n");
 
@@ -102,6 +107,9 @@ int main() {
 		char response[MAX_LENGTH] = { 0, };
 		sprintf(response, "HTTP/1.1 200 OK\r\n");
 		write(comm_fd, response, strlen(response));
+
+		shutdown(comm_fd, SHUT_WR);
+		clear_recv_buffer(comm_fd);
 		close(comm_fd);
  	}
 
