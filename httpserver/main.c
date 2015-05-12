@@ -6,7 +6,48 @@
 #include <sys/socket.h>
 
 #define MAX_LENGTH 1000
+#define MAX_NUM_OF_HEADER 32
 #define PORT 8888
+
+
+typedef struct http_request {
+	char method[16];
+	char url[128];
+	char version[16];
+	int header_count;
+	char headers[MAX_NUM_OF_HEADER][MAX_LENGTH];
+	char body[MAX_LENGTH];
+} http_request;
+
+
+void parsing_http_request(struct http_request* request, char* message) {
+	// printf("%s\n", message);
+	char *last;
+	last = strtok(message, " ");
+	strcpy(request->method, last);
+
+	last = strtok(NULL, " ");
+	strcpy(request->url, last);
+
+	last = strtok(NULL, "\n");
+	strcpy(request->version, last);
+
+	last += strlen(last) + 1;
+	char *body = strstr(last, "\n\n") + 2;
+	strcpy(request->body, body);
+
+	char header[MAX_LENGTH] = { 0, };
+	strncpy(header, last, body - last - 2);
+
+	request->header_count = 0;
+	char *tok = strtok(header, "\n");
+	while(tok != NULL) {
+		strcpy(request->headers[request->header_count++], tok);
+		tok = strtok(NULL, "\n");
+	}
+
+	strcpy(request->body, body);
+}
 
 int read_all_data(int sock_client, char* buffer) {
 	char *tmp = buffer;
@@ -55,7 +96,12 @@ int main() {
 			return 0;
 		}
 
-		write(comm_fd, str, strlen(str));
+		http_request request;
+		parsing_http_request(&request, str);
+
+		char response[MAX_LENGTH] = { 0, };
+		sprintf(response, "HTTP/1.1 200 OK\r\n");
+		write(comm_fd, response, strlen(response));
 		close(comm_fd);
  	}
 

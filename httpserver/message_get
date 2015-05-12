@@ -1,0 +1,6 @@
+GET / HTTP/1.1
+Host: 127.0.0.1:8888
+Connection: close
+User-Agent: Paw/2.2.1 (Macintosh; OS X/10.10.3) GCDHTTPRequest
+
+Hello world!
