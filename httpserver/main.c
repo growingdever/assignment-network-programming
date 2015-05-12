@@ -24,9 +24,9 @@ typedef struct http_request {
 void print_error(const char* content);
 
 
-int print_list_of_files(const char* url, char* response) {
+int print_list_of_files(const char* path, char* response) {
 	char process_str[MAX_LENGTH];
-	sprintf(process_str, "ls -al .%s", url);
+	sprintf(process_str, "ls -al %s", path);
 	printf("%s\n", process_str);
 
 	char buffer[MAX_LENGTH];
@@ -78,16 +78,45 @@ int print_list_of_files(const char* url, char* response) {
 	return 1;
 }
 
+int print_content_of_file(const char* path, char* response) {
+	printf("%s\n", path);
+	FILE *fp = fopen(path, "r");
+	if( !fp ) {
+		strcat(response, "HTTP/1.0 404 Not Found\r\n");
+		strcat(response, "Server: myserver\r\n");
+		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
+		strcat(response, "\r\n");
+		return -1;
+	}
+
+	strcat(response, "HTTP/1.0 200 OK\r\n");
+	strcat(response, "Server: myserver\r\n");
+	strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
+	strcat(response, "\r\n");
+
+	char buffer[MAX_LENGTH];
+	while(fgets(buffer, MAX_LENGTH, fp) != NULL) {
+		strcat(response, buffer);
+	}
+
+	return 1;
+}
+
 int process_request_get(const struct http_request* request, char* response) {
+	char path[32];
+	sprintf(path, ".%s", request->url);
+
 	struct stat stat_buffer;
-	if( stat(request->url, &stat_buffer) == -1 ) {
+	if( stat(path, &stat_buffer) == -1 ) {
 		return -1;
 	}
 
 	if( (stat_buffer.st_mode & S_IFMT) == S_IFDIR ) {
-		print_list_of_files(request->url, response);
+		print_list_of_files(path, response);
 	} else if( (stat_buffer.st_mode & S_IFMT) == S_IFREG ) {
-
+		print_content_of_file(path, response);
+	} else {
+		return -1;
 	}
 
 	return 1;
