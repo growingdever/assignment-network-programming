@@ -195,6 +195,13 @@ int process_request_post(const struct http_request* request, char* response) {
 		strcat(response, location_part);
 		strcat(response, "\r\n");
 		strcat(response, request->body);
+	} else if( is_file(stat_buffer) ) {
+		FILE *fp = fopen(path, "a");
+		fprintf(fp, "%s", request->body);
+		fclose(fp);
+
+		strcat(response, "HTTP/1.1 200 OK\r\n");
+		strcat(response, "Server: myserver\r\n\r\n");
 	}
 	
 	return 1;
