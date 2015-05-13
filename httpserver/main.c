@@ -14,6 +14,8 @@
 #define MAX_LENGTH_HEADER 128
 #define PORT 8888
 
+#define ERROR_LOGGING(content) { fprintf(stderr, "%d : %s\n", __LINE__, (content)); exit(1); }
+
 
 typedef struct http_request {
 	char method[MAX_LENGTH_METHOD];
@@ -25,7 +27,6 @@ typedef struct http_request {
 } http_request;
 
 
-void print_error(const char* content);
 char* tokenizing_multi_character_delim(char* dst, char* src, char* delim);
 
 
@@ -358,10 +359,6 @@ void clear_recv_buffer(int sock_client) {
 	read(sock_client, buffer, MAX_LENGTH);
 }
 
-void print_error(const char* content) {
-	fprintf(stderr, "%s\n", content);
-}
-
 int main() {
 	printf("start\n");
 	
@@ -375,8 +372,7 @@ int main() {
 	int sock_listen, sock_client;
 	sock_listen = socket(AF_INET, SOCK_STREAM, 0);
 	if( setsockopt(sock_listen, SOL_SOCKET, SO_REUSEADDR, (char *)&opt_sock_reuse, (int)sizeof(opt_sock_reuse)) ) {
-		print_error("failed to setsockopt");
-		return 1;
+		ERROR_LOGGING("failed to setsockopt")
 	}
 	
 	bind(sock_listen, (struct sockaddr *) &servaddr, sizeof(servaddr));
@@ -384,15 +380,14 @@ int main() {
 	printf("start listen\n");
 	listen(sock_listen, 10);
 	if( sock_listen < 0 ) {
-		printf("failed to create listening socket\n");
-		return 0;
+		ERROR_LOGGING("failed to create listening socket")
 	}
 	
 	while(1) {
 		sock_client = accept(sock_listen, (struct sockaddr*) NULL, NULL);
 		if( sock_client < 0 ) {
-			printf("failed to create client socket\n");
-			return 0;
+			fprintf(stderr, "failed to accept client socket\n");
+			continue;
 		}
 		
 		char str[MAX_LENGTH] = { 0, };
@@ -406,7 +401,7 @@ int main() {
 		
 		char response[MAX_LENGTH] = { 0, };
 		if( process_request(&request, response) < 0 ) {
-			printf("failed to process request\n");
+			fprintf(stderr, "failed to process request\n");
 			write(sock_client, response, strlen(response));
 		} else {
 			write(sock_client, response, strlen(response));
