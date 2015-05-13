@@ -253,6 +253,43 @@ int process_request_put(const struct http_request* request, char* response) {
 }
 
 int process_request_delete(const struct http_request* request, char* response) {
+	char path[64];
+	sprintf(path, ".%s", request->url);
+	
+	struct stat stat_buffer;
+	if( stat(path, &stat_buffer) == -1 ) {
+		strcat(response, "HTTP/1.0 404 Not Found\r\n");
+		strcat(response, "Server: myserver\r\n");
+		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
+		strcat(response, "\r\n");
+		return -1;
+	}
+
+	if( ! is_file(stat_buffer) ) {
+		strcat(response, "HTTP/1.0 400 Bad Request\r\n");
+		strcat(response, "Server: myserver\r\n");
+		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
+		strcat(response, "\r\n");
+		return -1;
+	}
+
+	char process_str[MAX_LENGTH];
+	sprintf(process_str, "rm -f %s", path);
+	printf("%s\n", process_str);
+	
+	char buffer[MAX_LENGTH];
+	FILE *process_fp = popen(process_str, "r");
+	if (process_fp == NULL)	{
+		return -1;
+	}
+	pclose(process_fp);
+
+	strcat(response, "HTTP/1.0 200 OK\r\n");
+	strcat(response, "Server: myserver\r\n");
+	strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
+	strcat(response, "\r\n");
+	return 1;
+
 	return 1;
 }
 
