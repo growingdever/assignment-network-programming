@@ -25,14 +25,14 @@ void print_error(const char* content);
 
 
 void random_string(char *dest, int length) {
-	static const char alphanum[] = 
+	static const char alphanum[] =
 		"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-
-    for (int i = 0; i < length; ++i) {
-        dest[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
-    }
-
-    dest[length] = 0;
+	
+	for (int i = 0; i < length; ++i) {
+		dest[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+	}
+	
+	dest[length] = 0;
 }
 
 int is_directory(const struct stat stat_buffer) {
