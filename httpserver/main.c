@@ -6,6 +6,8 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 
+#define SERVER_STRING "Server: httpserver/0.0.1\r\n"
+
 #define MAX_LENGTH 1024
 #define MAX_LENGTH_METHOD 16
 #define MAX_LENGTH_URL 128
@@ -18,6 +20,7 @@
 
 
 typedef struct http_request {
+	int sock;
 	char method[MAX_LENGTH_METHOD];
 	char url[MAX_LENGTH_URL];
 	char version[MAX_LENGTH_VERSION];
@@ -28,6 +31,8 @@ typedef struct http_request {
 
 
 char* tokenizing_multi_character_delim(char* dst, char* src, char* delim);
+void response_400(int sock);
+void response_404(int sock);
 
 
 void random_string(char *dest, int length) {
@@ -120,10 +125,6 @@ int print_content_of_file(const char* path, char* response) {
 	printf("%s\n", path);
 	FILE *fp = fopen(path, "r");
 	if( !fp ) {
-		strcat(response, "HTTP/1.0 404 Not Found\r\n");
-		strcat(response, "Server: myserver\r\n");
-		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
-		strcat(response, "\r\n");
 		fclose(fp);
 		return -1;
 	}
@@ -155,15 +156,14 @@ int process_request_get(const struct http_request* request, char* response) {
 	if( (stat_buffer.st_mode & S_IFMT) == S_IFDIR ) {
 		return print_list_of_files(path, response);
 	} else if( (stat_buffer.st_mode & S_IFMT) == S_IFREG ) {
-		return print_content_of_file(path, response);
+		if( print_content_of_file(path, response) < 0 ) {
+			response_404(request->sock);
+			return -1;
+		}
 	}
 	
 	
-	strcat(response, "HTTP/1.0 400 Bad Request\r\n");
-	strcat(response, "Server: myserver\r\n");
-	strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
-	strcat(response, "\r\n");
-	
+	response_400(request->sock);
 	return -1;
 }
 
@@ -173,10 +173,7 @@ int process_request_post(const struct http_request* request, char* response) {
 	
 	struct stat stat_buffer;
 	if( stat(path, &stat_buffer) == -1 ) {
-		strcat(response, "HTTP/1.0 404 Not Found\r\n");
-		strcat(response, "Server: myserver\r\n");
-		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
-		strcat(response, "\r\n");
+		response_404(request->sock);
 		return -1;
 	}
 	
@@ -206,7 +203,7 @@ int process_request_post(const struct http_request* request, char* response) {
 		FILE *fp = fopen(path, "a");
 		fprintf(fp, "%s", request->body);
 		fclose(fp);
-
+		
 		strcat(response, "HTTP/1.1 200 OK\r\n");
 		strcat(response, "Server: myserver\r\n\r\n");
 	}
@@ -217,7 +214,7 @@ int process_request_post(const struct http_request* request, char* response) {
 int process_request_put(const struct http_request* request, char* response) {
 	char path[64];
 	sprintf(path, ".%s", request->url);
-
+	
 	struct stat stat_buffer;
 	if( stat(path, &stat_buffer) == -1 && strlen(request->body) == 0 ) {
 		// create new directory
@@ -231,19 +228,19 @@ int process_request_put(const struct http_request* request, char* response) {
 			return -1;
 		}
 		pclose(process_fp);
-
+		
 		strcat(response, "HTTP/1.0 201 Created\r\n");
 		strcat(response, "Server: myserver\r\n");
 		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
 		strcat(response, "\r\n");
 		return 1;
 	}
-
+	
 	if( is_file(stat_buffer) ) {
 		FILE *fp = fopen(path, "w");
 		fprintf(fp, "%s", request->body);
 		fclose(fp);
-
+		
 		strcat(response, "HTTP/1.1 200 OK\r\n");
 		strcat(response, "Server: myserver\r\n");
 		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n\r\n");
@@ -251,11 +248,8 @@ int process_request_put(const struct http_request* request, char* response) {
 		strcat(response, "\r\n");
 		return 1;
 	}
-
-	strcat(response, "HTTP/1.0 400 Bad Request\r\n");
-	strcat(response, "Server: myserver\r\n");
-	strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
-	strcat(response, "\r\n");
+	
+	response_400(request->sock);
 	return -1;
 }
 
@@ -265,21 +259,15 @@ int process_request_delete(const struct http_request* request, char* response) {
 	
 	struct stat stat_buffer;
 	if( stat(path, &stat_buffer) == -1 ) {
-		strcat(response, "HTTP/1.0 404 Not Found\r\n");
-		strcat(response, "Server: myserver\r\n");
-		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
-		strcat(response, "\r\n");
+		response_404(request->sock);
 		return -1;
 	}
-
+	
 	if( ! is_file(stat_buffer) ) {
-		strcat(response, "HTTP/1.0 400 Bad Request\r\n");
-		strcat(response, "Server: myserver\r\n");
-		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
-		strcat(response, "\r\n");
+		response_400(request->sock);
 		return -1;
 	}
-
+	
 	char process_str[MAX_LENGTH];
 	sprintf(process_str, "rm -f %s", path);
 	printf("%s\n", process_str);
@@ -290,13 +278,13 @@ int process_request_delete(const struct http_request* request, char* response) {
 		return -1;
 	}
 	pclose(process_fp);
-
+	
 	strcat(response, "HTTP/1.0 200 OK\r\n");
 	strcat(response, "Server: myserver\r\n");
 	strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
 	strcat(response, "\r\n");
 	return 1;
-
+	
 	return 1;
 }
 
@@ -310,11 +298,8 @@ int process_request(const struct http_request* request, char* response) {
 	} else if( strcmp(request->method, "DELETE") == 0 ) {
 		return process_request_delete(request, response);
 	}
-
-	strcat(response, "HTTP/1.0 400 Bad Request\r\n");
-	strcat(response, "Server: myserver\r\n");
-	strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
-	strcat(response, "\r\n");
+	
+	response_400(request->sock);
 	return -1;
 }
 
@@ -397,6 +382,7 @@ int main() {
 		
 		http_request request;
 		memset(&request, 0, sizeof(request));
+		request.sock = sock_client;
 		parsing_http_request(&request, str);
 		
 		char response[MAX_LENGTH] = { 0, };
@@ -413,4 +399,28 @@ int main() {
 	}
 	
 	return 0;
+}
+
+void response_400(int sock) {
+	char response[MAX_LENGTH];
+	sprintf(response, "HTTP/1.1 400 Bad Request\r\n");
+	send(sock, response, strlen(response), 0);
+	sprintf(response, SERVER_STRING);
+	send(sock, response, strlen(response), 0);
+	sprintf(response, "Content-Type: text/plain; charset=utf-8\r\n");
+	send(sock, response, strlen(response), 0);
+	sprintf(response, "\r\n");
+	send(sock, response, strlen(response), 0);
+}
+
+void response_404(int sock) {
+	char response[MAX_LENGTH];
+	sprintf(response, "HTTP/1.1 404 Not Found\r\n");
+	send(sock, response, strlen(response), 0);
+	sprintf(response, SERVER_STRING);
+	send(sock, response, strlen(response), 0);
+	sprintf(response, "Content-Type: text/plain; charset=utf-8\r\n");
+	send(sock, response, strlen(response), 0);
+	sprintf(response, "\r\n");
+	send(sock, response, strlen(response), 0);
 }
