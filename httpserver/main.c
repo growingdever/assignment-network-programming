@@ -423,13 +423,13 @@ void response_200(int sock, const char* extra_header, const char* content) {
 	sprintf(response, "Content-Type: text/plain; charset=utf-8\r\n");
 	send(sock, response, strlen(response), 0);
 	if( extra_header != NULL && strlen(extra_header) > 0 ) {
-		sprintf(response, "%s", extra_header);
+		sprintf(response, "%s\r\n", extra_header);
 		send(sock, response, strlen(response), 0);
 	}
 	sprintf(response, "\r\n");
 	send(sock, response, strlen(response), 0);
 	if( content != NULL && strlen(content) > 0 ) {
-		sprintf(response, "%s", content);
+		sprintf(response, "%s\r\n", content);
 		send(sock, response, strlen(response), 0);
 	}
 }
@@ -443,13 +443,13 @@ void response_200_json(int sock, const char* extra_header, const char* content) 
 	sprintf(response, "Content-Type: %s\r\n", "application/json");
 	send(sock, response, strlen(response), 0);
 	if( extra_header != NULL && strlen(extra_header) > 0 ) {
-		sprintf(response, "%s", extra_header);
+		sprintf(response, "%s\r\n", extra_header);
 		send(sock, response, strlen(response), 0);
 	}
 	sprintf(response, "\r\n");
 	send(sock, response, strlen(response), 0);
 	if( content != NULL && strlen(content) > 0 ) {
-		sprintf(response, "%s", content);
+		sprintf(response, "%s\r\n", content);
 		send(sock, response, strlen(response), 0);
 	}
 }
@@ -463,13 +463,13 @@ void response_201(int sock, const char* extra_header, const char* content) {
 	sprintf(response, "Content-Type: text/plain; charset=utf-8\r\n");
 	send(sock, response, strlen(response), 0);
 	if( extra_header != NULL && strlen(extra_header) > 0 ) {
-		sprintf(response, "%s", extra_header);
+		sprintf(response, "%s\r\n", extra_header);
 		send(sock, response, strlen(response), 0);
 	}
 	sprintf(response, "\r\n");
 	send(sock, response, strlen(response), 0);
 	if( content != NULL && strlen(content) > 0 ) {
-		sprintf(response, "%s", content);
+		sprintf(response, "%s\r\n", content);
 		send(sock, response, strlen(response), 0);
 	}
 }
