@@ -208,7 +208,47 @@ int process_request_post(const struct http_request* request, char* response) {
 }
 
 int process_request_put(const struct http_request* request, char* response) {
-	return 1;
+	char path[64];
+	sprintf(path, ".%s", request->url);
+
+	struct stat stat_buffer;
+	if( stat(path, &stat_buffer) == -1 && strlen(request->body) == 0 ) {
+		// create new directory
+		char process_str[MAX_LENGTH];
+		sprintf(process_str, "mkdir -p %s", path);
+		printf("%s\n", process_str);
+		
+		char buffer[MAX_LENGTH];
+		FILE *process_fp = popen(process_str, "r");
+		if (process_fp == NULL)	{
+			return -1;
+		}
+
+		strcat(response, "HTTP/1.0 201 Created\r\n");
+		strcat(response, "Server: myserver\r\n");
+		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
+		strcat(response, "\r\n");
+		return 1;
+	}
+
+	if( is_file(stat_buffer) ) {
+		FILE *fp = fopen(path, "w");
+		fprintf(fp, "%s", request->body);
+		fclose(fp);
+
+		strcat(response, "HTTP/1.1 200 OK\r\n");
+		strcat(response, "Server: myserver\r\n");
+		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n\r\n");
+		strcat(response, request->body);
+		strcat(response, "\r\n");
+		return 1;
+	}
+
+	strcat(response, "HTTP/1.0 400 Bad Request\r\n");
+	strcat(response, "Server: myserver\r\n");
+	strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
+	strcat(response, "\r\n");
+	return -1;
 }
 
 int process_request_delete(const struct http_request* request, char* response) {
