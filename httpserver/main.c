@@ -33,6 +33,8 @@ typedef struct http_request {
 char* tokenizing_multi_character_delim(char* dst, char* src, char* delim);
 int get_list_of_files(const char* path, char* content);
 int get_content_of_file(const char* path, char* content);
+int handle_request(int sock);
+int init_listening_socket(struct sockaddr_in* addr);
 void response_200(int sock, 
 	const char* extra_header, 
 	const char* content);
@@ -339,58 +341,72 @@ void clear_recv_buffer(int sock_client) {
 	read(sock_client, buffer, MAX_LENGTH);
 }
 
+int handle_request(int sock) {
+	char str[MAX_LENGTH] = { 0, };
+	if( ! read_all_data(sock, str) ) {
+		return -1;
+	}
+	
+	http_request request;
+	memset(&request, 0, sizeof(request));
+
+	request.sock = sock;
+	parsing_http_request(&request, str);
+	
+	char response[MAX_LENGTH] = { 0, };
+	if( process_request(&request, response) < 0 ) {
+		fprintf(stderr, "failed to process request\n");
+	}
+
+	write(sock, response, strlen(response));
+	shutdown(sock, SHUT_WR);
+	clear_recv_buffer(sock);
+	close(sock);
+
+	return 1;
+}
+
+int init_listening_socket(struct sockaddr_in* addr) {
+	addr->sin_family = AF_INET;
+	addr->sin_addr.s_addr = htons(INADDR_ANY);
+	addr->sin_port = htons(PORT);
+
+	int sock_listen = socket(AF_INET, SOCK_STREAM, 0);
+	if( sock_listen < 0 ) {
+		ERROR_LOGGING("failed to create listening socket")
+	}
+
+	int opt_sock_reuse = 1;
+	if( setsockopt(sock_listen, SOL_SOCKET, SO_REUSEADDR, (char *)&opt_sock_reuse, (int)sizeof(opt_sock_reuse)) ) {
+		ERROR_LOGGING("failed to setsockopt")
+	}
+
+	return sock_listen;
+}
+
 int main() {
 	printf("start\n");
 	
 	struct sockaddr_in servaddr;
 	memset(&servaddr, 0, sizeof(servaddr));
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_addr.s_addr = htons(INADDR_ANY);
-	servaddr.sin_port = htons(PORT);
-	
-	int opt_sock_reuse = 1;
-	int sock_listen, sock_client;
-	sock_listen = socket(AF_INET, SOCK_STREAM, 0);
-	if( setsockopt(sock_listen, SOL_SOCKET, SO_REUSEADDR, (char *)&opt_sock_reuse, (int)sizeof(opt_sock_reuse)) ) {
-		ERROR_LOGGING("failed to setsockopt")
-	}
-	
+	int sock_listen = init_listening_socket(&servaddr);
+
 	bind(sock_listen, (struct sockaddr *) &servaddr, sizeof(servaddr));
 	
-	printf("start listen\n");
 	listen(sock_listen, 10);
-	if( sock_listen < 0 ) {
-		ERROR_LOGGING("failed to create listening socket")
-	}
+	printf("start listen\n");
 	
 	while(1) {
-		sock_client = accept(sock_listen, (struct sockaddr*) NULL, NULL);
+		int sock_client = accept(sock_listen, (struct sockaddr*) NULL, NULL);
 		if( sock_client < 0 ) {
 			fprintf(stderr, "failed to accept client socket\n");
 			continue;
 		}
-		
-		char str[MAX_LENGTH] = { 0, };
-		if( ! read_all_data(sock_client, str) ) {
-			return 0;
+
+		if( handle_request(sock_client) < 0 ) {
+			fprintf(stderr, "failed to handle request\n");
+			continue;
 		}
-		
-		http_request request;
-		memset(&request, 0, sizeof(request));
-		request.sock = sock_client;
-		parsing_http_request(&request, str);
-		
-		char response[MAX_LENGTH] = { 0, };
-		if( process_request(&request, response) < 0 ) {
-			fprintf(stderr, "failed to process request\n");
-			write(sock_client, response, strlen(response));
-		} else {
-			write(sock_client, response, strlen(response));
-		}
-		
-		shutdown(sock_client, SHUT_WR);
-		clear_recv_buffer(sock_client);
-		close(sock_client);
 	}
 	
 	return 0;
