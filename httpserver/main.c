@@ -223,6 +223,7 @@ int process_request_put(const struct http_request* request, char* response) {
 		if (process_fp == NULL)	{
 			return -1;
 		}
+		pclose(process_fp);
 
 		strcat(response, "HTTP/1.0 201 Created\r\n");
 		strcat(response, "Server: myserver\r\n");
