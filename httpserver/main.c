@@ -39,6 +39,9 @@ void response_200(int sock,
 void response_200_json(int sock, 
 	const char* extra_header, 
 	const char* content);
+void response_201(int sock, 
+	const char* extra_header, 
+	const char* content);
 void response_400(int sock);
 void response_404(int sock);
 
@@ -199,22 +202,20 @@ int process_request_post(const struct http_request* request, char* response) {
 		
 		char location_part[MAX_LENGTH];
 		sprintf(location_part, "Location: %s%s\r\n", host_url, path + 1);
-		
-		strcat(response, "HTTP/1.0 201 Created\r\n");
-		strcat(response, "Server: myserver\r\n");
-		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
-		strcat(response, location_part);
-		strcat(response, "\r\n");
-		strcat(response, request->body);
+
+		response_201(request->sock, location_part, request->body);
+		return 1;		
 	} else if( is_file(stat_buffer) ) {
 		FILE *fp = fopen(path, "a");
 		fprintf(fp, "%s", request->body);
 		fclose(fp);
 		
 		response_200(request->sock, "", request->body);
+		return 1;
 	}
 	
-	return 1;
+	response_400(request->sock);
+	return -1;
 }
 
 int process_request_put(const struct http_request* request, char* response) {
@@ -235,10 +236,7 @@ int process_request_put(const struct http_request* request, char* response) {
 		}
 		pclose(process_fp);
 		
-		strcat(response, "HTTP/1.0 201 Created\r\n");
-		strcat(response, "Server: myserver\r\n");
-		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
-		strcat(response, "\r\n");
+		response_201(request->sock, "", "");
 		return 1;
 	}
 	
@@ -406,13 +404,13 @@ void response_200(int sock, const char* extra_header, const char* content) {
 	send(sock, response, strlen(response), 0);
 	sprintf(response, "Content-Type: text/plain; charset=utf-8\r\n");
 	send(sock, response, strlen(response), 0);
-	if( strlen(extra_header) > 0 ) {
+	if( extra_header != NULL && strlen(extra_header) > 0 ) {
 		sprintf(response, "%s", extra_header);
 		send(sock, response, strlen(response), 0);
 	}
 	sprintf(response, "\r\n");
 	send(sock, response, strlen(response), 0);
-	if( strlen(content) > 0 ) {
+	if( content != NULL && strlen(content) > 0 ) {
 		sprintf(response, "%s", content);
 		send(sock, response, strlen(response), 0);
 	}
@@ -426,13 +424,33 @@ void response_200_json(int sock, const char* extra_header, const char* content) 
 	send(sock, response, strlen(response), 0);
 	sprintf(response, "Content-Type: %s\r\n", "application/json");
 	send(sock, response, strlen(response), 0);
-	if( strlen(extra_header) > 0 ) {
+	if( extra_header != NULL && strlen(extra_header) > 0 ) {
 		sprintf(response, "%s", extra_header);
 		send(sock, response, strlen(response), 0);
 	}
 	sprintf(response, "\r\n");
 	send(sock, response, strlen(response), 0);
-	if( strlen(content) > 0 ) {
+	if( content != NULL && strlen(content) > 0 ) {
+		sprintf(response, "%s", content);
+		send(sock, response, strlen(response), 0);
+	}
+}
+
+void response_201(int sock, const char* extra_header, const char* content) {
+	char response[MAX_LENGTH];
+	sprintf(response, "HTTP/1.1 201 Created\r\n");
+	send(sock, response, strlen(response), 0);
+	sprintf(response, SERVER_STRING);
+	send(sock, response, strlen(response), 0);
+	sprintf(response, "Content-Type: text/plain; charset=utf-8\r\n");
+	send(sock, response, strlen(response), 0);
+	if( extra_header != NULL && strlen(extra_header) > 0 ) {
+		sprintf(response, "%s", extra_header);
+		send(sock, response, strlen(response), 0);
+	}
+	sprintf(response, "\r\n");
+	send(sock, response, strlen(response), 0);
+	if( content != NULL && strlen(content) > 0 ) {
 		sprintf(response, "%s", content);
 		send(sock, response, strlen(response), 0);
 	}
