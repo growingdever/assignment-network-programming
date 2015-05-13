@@ -101,7 +101,9 @@ int get_list_of_files(const char* path, char* content) {
 			char *str_group = strtok(NULL, " ");
 			char *str_size = strtok(NULL, " ");
 			char *str_time = strtok(NULL, " ");
-			char *str_name = strtok(NULL, " ");
+			strtok(NULL, " ");
+			strtok(NULL, " ");
+			char *str_name = strtok(NULL, " \n");
 			
 			char tmp[MAX_LENGTH];
 			sprintf(tmp, "{ \
