@@ -22,6 +22,7 @@ typedef struct http_request {
 
 
 void print_error(const char* content);
+char* tokenizing_multi_character_delim(char* dst, char* src, char* delim);
 
 
 void random_string(char *dest, int length) {
@@ -43,17 +44,28 @@ int is_file(const struct stat stat_buffer) {
 	return (stat_buffer.st_mode & S_IFMT) == S_IFREG;
 }
 
+void find_header_value(const struct http_request* request, const char* key, char* dest) {
+	for( int i = 0; i < request->header_count; i ++ ) {
+		char header_key_only[32];
+		tokenizing_multi_character_delim(header_key_only, (char*)request->headers[i], ": ");
+		if( strcmp(header_key_only, key) == 0 ) {
+			tokenizing_multi_character_delim(dest, (char*)request->headers[i] + strlen(header_key_only) + 2, "\r\n");
+			return;
+		}
+	}
+}
+
 int print_list_of_files(const char* path, char* response) {
 	char process_str[MAX_LENGTH];
 	sprintf(process_str, "ls -al %s", path);
 	printf("%s\n", process_str);
-
+	
 	char buffer[MAX_LENGTH];
 	FILE *process_fp = popen(process_str, "r");
 	if (process_fp == NULL)	{
 		return -1;
 	}
-
+	
 	strcat(response, "HTTP/1.0 200 OK\r\n");
 	strcat(response, "Server: myserver\r\n");
 	strcat(response, "Content-Type: application/json\r\n");
@@ -68,9 +80,7 @@ int print_list_of_files(const char* path, char* response) {
 		char *str_size = strtok(NULL, " ");
 		char *str_time = strtok(NULL, " ");
 		char *str_name = strtok(NULL, " ");
-
-		// printf("%s %s %s %s %s %s %s\n", str_permission, str_link, str_owner, str_group, str_size, str_time, str_name);
-
+		
 		char tmp[MAX_LENGTH];
 		sprintf(tmp, "{ \
 				\"%s\" : \"%s\" \
@@ -80,22 +90,22 @@ int print_list_of_files(const char* path, char* response) {
 				\"%s\" : \"%s\" \
 				\"%s\" : \"%s\" \
 				\"%s\" : \"%s\" \
-			},", 
-			"permission", str_permission, 
-			"link", str_link,
-			"owner", str_owner,
-			"group", str_group,
-			"size", str_size,
-			"time", str_time,
-			"name", str_name);
+				},",
+				"permission", str_permission,
+				"link", str_link,
+				"owner", str_owner,
+				"group", str_group,
+				"size", str_size,
+				"time", str_time,
+				"name", str_name);
 		strcat(response, tmp);
 	}
 	// remove last comma
 	response[strlen(response) - 1] = 0;
 	strcat(response, "]");
-
+	
 	pclose(process_fp);
-
+	
 	return 1;
 }
 
@@ -110,50 +120,50 @@ int print_content_of_file(const char* path, char* response) {
 		fclose(fp);
 		return -1;
 	}
-
+	
 	strcat(response, "HTTP/1.0 200 OK\r\n");
 	strcat(response, "Server: myserver\r\n");
 	strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
 	strcat(response, "\r\n");
-
+	
 	char buffer[MAX_LENGTH];
 	while(fgets(buffer, MAX_LENGTH, fp) != NULL) {
 		strcat(response, buffer);
 	}
-
+	
 	fclose(fp);
-
+	
 	return 1;
 }
 
 int process_request_get(const struct http_request* request, char* response) {
 	char path[32];
 	sprintf(path, ".%s", request->url);
-
+	
 	struct stat stat_buffer;
 	if( stat(path, &stat_buffer) == -1 ) {
 		return -1;
 	}
-
+	
 	if( (stat_buffer.st_mode & S_IFMT) == S_IFDIR ) {
 		return print_list_of_files(path, response);
 	} else if( (stat_buffer.st_mode & S_IFMT) == S_IFREG ) {
 		return print_content_of_file(path, response);
 	}
-
-
+	
+	
 	strcat(response, "HTTP/1.0 400 Bad Request\r\n");
 	strcat(response, "Server: myserver\r\n");
 	strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
 	strcat(response, "\r\n");
-
+	
 	return -1;
 }
 
 int process_request_post(const struct http_request* request, char* response) {
 	char path[64];
 	sprintf(path, ".%s", request->url);
-
+	
 	struct stat stat_buffer;
 	if( stat(path, &stat_buffer) == -1 ) {
 		strcat(response, "HTTP/1.0 404 Not Found\r\n");
@@ -162,24 +172,31 @@ int process_request_post(const struct http_request* request, char* response) {
 		strcat(response, "\r\n");
 		return -1;
 	}
-
+	
 	if( is_directory(stat_buffer) ) {
 		char new_filename[16];
 		random_string(new_filename, 8);
-
+		
 		sprintf(path, ".%s/%s", request->url, new_filename);
-
+		
 		FILE *new_fp = fopen(path, "w");
 		fprintf(new_fp, "%s", request->body);
 		fclose(new_fp);
-
+		
+		char host_url[MAX_LENGTH];
+		find_header_value(request, "Host", host_url);
+		
+		char location_part[MAX_LENGTH];
+		sprintf(location_part, "Location: %s%s\r\n", host_url, path + 1);
+		
 		strcat(response, "HTTP/1.0 201 Created\r\n");
 		strcat(response, "Server: myserver\r\n");
 		strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
+		strcat(response, location_part);
 		strcat(response, "\r\n");
 		strcat(response, request->body);
 	}
-
+	
 	return 1;
 }
 
@@ -201,7 +218,7 @@ int process_request(const struct http_request* request, char* response) {
 	} else if( strcmp(request->method, "DELETE") == 0 ) {
 		return process_request_delete(request, response);
 	}
-
+	
 	return 1;
 }
 
