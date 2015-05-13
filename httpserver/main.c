@@ -7,16 +7,20 @@
 #include <sys/stat.h>
 
 #define MAX_LENGTH 1024
+#define MAX_LENGTH_METHOD 16
+#define MAX_LENGTH_URL 128
+#define MAX_LENGTH_VERSION 128
 #define MAX_NUM_OF_HEADER 32
+#define MAX_LENGTH_HEADER 128
 #define PORT 8888
 
 
 typedef struct http_request {
-	char method[16];
-	char url[128];
-	char version[16];
+	char method[MAX_LENGTH_METHOD];
+	char url[MAX_LENGTH_URL];
+	char version[MAX_LENGTH_VERSION];
 	int header_count;
-	char headers[MAX_NUM_OF_HEADER][MAX_LENGTH];
+	char headers[MAX_NUM_OF_HEADER][MAX_LENGTH_HEADER];
 	char body[MAX_LENGTH];
 } http_request;
 
@@ -46,10 +50,12 @@ int is_file(const struct stat stat_buffer) {
 
 void find_header_value(const struct http_request* request, const char* key, char* dest) {
 	for( int i = 0; i < request->header_count; i ++ ) {
-		char header_key_only[32];
+		char header_key_only[MAX_LENGTH_HEADER];
 		tokenizing_multi_character_delim(header_key_only, (char*)request->headers[i], ": ");
 		if( strcmp(header_key_only, key) == 0 ) {
-			tokenizing_multi_character_delim(dest, (char*)request->headers[i] + strlen(header_key_only) + 2, "\r\n");
+			tokenizing_multi_character_delim(dest, 
+				(char*)request->headers[i] + strlen(header_key_only) + 2, 
+				"\r\n");
 			return;
 		}
 	}
@@ -323,7 +329,7 @@ char* tokenizing_multi_character_delim(char* dst, char* src, char* delim) {
 
 void parsing_http_request(struct http_request* request, char* message) {
 	char *last = message;
-	char header_part[MAX_LENGTH] = { 0, };
+	char header_part[MAX_LENGTH_HEADER] = { 0, };
 	
 	last = tokenizing_multi_character_delim(request->method, last, " ");
 	last = tokenizing_multi_character_delim(request->url, last, " ");
