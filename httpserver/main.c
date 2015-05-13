@@ -265,8 +265,12 @@ int process_request(const struct http_request* request, char* response) {
 	} else if( strcmp(request->method, "DELETE") == 0 ) {
 		return process_request_delete(request, response);
 	}
-	
-	return 1;
+
+	strcat(response, "HTTP/1.0 400 Bad Request\r\n");
+	strcat(response, "Server: myserver\r\n");
+	strcat(response, "Content-Type: text/plain; charset=utf-8\r\n");
+	strcat(response, "\r\n");
+	return -1;
 }
 
 char* tokenizing_multi_character_delim(char* dst, char* src, char* delim) {
@@ -359,6 +363,7 @@ int main() {
 		char response[MAX_LENGTH] = { 0, };
 		if( process_request(&request, response) < 0 ) {
 			printf("failed to process request\n");
+			write(sock_client, response, strlen(response));
 		} else {
 			write(sock_client, response, strlen(response));
 		}
