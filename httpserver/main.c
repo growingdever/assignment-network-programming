@@ -31,7 +31,14 @@ typedef struct http_request {
 
 
 char* tokenizing_multi_character_delim(char* dst, char* src, char* delim);
-void response_200(int sock, const char* extra_header, const char* content);
+int get_list_of_files(const char* path, char* content);
+int get_content_of_file(const char* path, char* content);
+void response_200(int sock, 
+	const char* extra_header, 
+	const char* content);
+void response_200_json(int sock, 
+	const char* extra_header, 
+	const char* content);
 void response_400(int sock);
 void response_404(int sock);
 
@@ -68,7 +75,7 @@ void find_header_value(const struct http_request* request, const char* key, char
 	}
 }
 
-int print_list_of_files(const char* path, char* response) {
+int get_list_of_files(const char* path, char* content) {
 	char process_str[MAX_LENGTH];
 	sprintf(process_str, "ls -al %s", path);
 	printf("%s\n", process_str);
@@ -79,44 +86,38 @@ int print_list_of_files(const char* path, char* response) {
 		return -1;
 	}
 	
-	strcat(response, "HTTP/1.0 200 OK\r\n");
-	strcat(response, "Server: myserver\r\n");
-	strcat(response, "Content-Type: application/json\r\n");
-	strcat(response, "\r\n[");
-	// remove first line
-	fgets(buffer, MAX_LENGTH, process_fp);
-	while(fgets(buffer, MAX_LENGTH, process_fp) != NULL) {
-		char *str_permission = strtok(buffer, " ");
-		char *str_link = strtok(NULL, " ");
-		char *str_owner = strtok(NULL, " ");
-		char *str_group = strtok(NULL, " ");
-		char *str_size = strtok(NULL, " ");
-		char *str_time = strtok(NULL, " ");
-		char *str_name = strtok(NULL, " ");
-		
-		char tmp[MAX_LENGTH];
-		sprintf(tmp, "{ \
-				\"%s\" : \"%s\" \
-				\"%s\" : \"%s\" \
-				\"%s\" : \"%s\" \
-				\"%s\" : \"%s\" \
-				\"%s\" : \"%s\" \
-				\"%s\" : \"%s\" \
-				\"%s\" : \"%s\" \
-				},",
-				"permission", str_permission,
-				"link", str_link,
-				"owner", str_owner,
-				"group", str_group,
-				"size", str_size,
-				"time", str_time,
-				"name", str_name);
-		strcat(response, tmp);
+	strcat(content, "[");
+	{
+		fgets(buffer, MAX_LENGTH, process_fp);
+		while(fgets(buffer, MAX_LENGTH, process_fp) != NULL) {
+			char *str_permission = strtok(buffer, " ");
+			char *str_link = strtok(NULL, " ");
+			char *str_owner = strtok(NULL, " ");
+			char *str_group = strtok(NULL, " ");
+			char *str_size = strtok(NULL, " ");
+			char *str_time = strtok(NULL, " ");
+			char *str_name = strtok(NULL, " ");
+			
+			char tmp[MAX_LENGTH];
+			sprintf(tmp, "{ \
+					\"%s\" : \"%s\" \
+					\"%s\" : \"%s\" \
+					\"%s\" : \"%s\" \
+					\"%s\" : \"%s\" \
+					\"%s\" : \"%s\" \
+					\"%s\" : \"%s\" \
+					\"%s\" : \"%s\" },",
+					"permission", str_permission,
+					"link", str_link,
+					"owner", str_owner,
+					"group", str_group,
+					"size", str_size,
+					"time", str_time,
+					"name", str_name);
+			strcat(content, tmp);
+		}
 	}
-	// remove last comma
-	response[strlen(response) - 1] = 0;
-	strcat(response, "]");
-	
+	strcat(content, "]");
 	pclose(process_fp);
 	
 	return 1;
@@ -149,10 +150,16 @@ int process_request_get(const struct http_request* request, char* response) {
 		return -1;
 	}
 	
+	char content[MAX_LENGTH] = { 0, };
 	if( (stat_buffer.st_mode & S_IFMT) == S_IFDIR ) {
-		return print_list_of_files(path, response);
+		if( get_list_of_files(path, content) < 0 ) {
+			response_404(request->sock);
+			return -1;
+		}
+
+		response_200_json(request->sock, "", content);
+		return 1;
 	} else if( (stat_buffer.st_mode & S_IFMT) == S_IFREG ) {
-		char content[MAX_LENGTH] = { 0, };
 		if( get_content_of_file(path, content) < 0 ) {
 			response_404(request->sock);
 			return -1;
@@ -398,6 +405,26 @@ void response_200(int sock, const char* extra_header, const char* content) {
 	sprintf(response, SERVER_STRING);
 	send(sock, response, strlen(response), 0);
 	sprintf(response, "Content-Type: text/plain; charset=utf-8\r\n");
+	send(sock, response, strlen(response), 0);
+	if( strlen(extra_header) > 0 ) {
+		sprintf(response, "%s", extra_header);
+		send(sock, response, strlen(response), 0);
+	}
+	sprintf(response, "\r\n");
+	send(sock, response, strlen(response), 0);
+	if( strlen(content) > 0 ) {
+		sprintf(response, "%s", content);
+		send(sock, response, strlen(response), 0);
+	}
+}
+
+void response_200_json(int sock, const char* extra_header, const char* content) {
+	char response[MAX_LENGTH];
+	sprintf(response, "HTTP/1.1 200 OK\r\n");
+	send(sock, response, strlen(response), 0);
+	sprintf(response, SERVER_STRING);
+	send(sock, response, strlen(response), 0);
+	sprintf(response, "Content-Type: %s\r\n", "application/json");
 	send(sock, response, strlen(response), 0);
 	if( strlen(extra_header) > 0 ) {
 		sprintf(response, "%s", extra_header);
