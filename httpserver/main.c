@@ -226,10 +226,13 @@ void parsing_http_request(struct http_request* request, char* message) {
 	last = tokenizing_multi_character_delim(request->body, last, "\r\n");
 	
 	request->header_count = 0;
-	char *tok = strtok(header_part, "\n");
-	while(tok != NULL) {
-		strcpy(request->headers[request->header_count++], tok);
-		tok = strtok(NULL, "\n");
+	last = header_part;
+	while(1) {
+		last = tokenizing_multi_character_delim(request->headers[request->header_count], last, "\r\n");
+		request->header_count++;
+		if( last == NULL ) {
+			break;
+		}
 	}
 }
 
