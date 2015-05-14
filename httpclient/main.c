@@ -9,19 +9,17 @@
 #include "data_structure.h"
 #include "util.h"
 
-#define ERROR_LOGGING(content) { fprintf(stderr, "%d : %s\n", __LINE__, (content)); exit(1); }
-
 #define ARGV_INDEX_IP 1
 #define ARGV_INDEX_PORT 2
 
 
-void clear_recv_buffer(int sock_client);
 void work(int sock);
-void str_tolower(char* str);
 void build_request_get(char* url);
+
 
 const char* str_ip;
 const char* str_port;
+
 
 int main(int argc, char const *argv[])
 {

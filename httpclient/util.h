@@ -11,6 +11,8 @@
 
 #include <stdio.h>
 
+#define ERROR_LOGGING(content) { fprintf(stderr, "%d : %s\n", __LINE__, (content)); exit(1); }
+
 
 void clear_recv_buffer(int sock_client) {
 	char buffer[MAX_LENGTH];
