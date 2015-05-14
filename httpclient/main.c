@@ -57,6 +57,25 @@ int main(int argc, char const *argv[])
 	return 0;
 }
 
+void work(int sock) {
+	char buffer[MAX_LENGTH] = { 0, };
+	char command[16] = { 'g', 'e', 't', };
+	printf("command : ");
+	scanf("%s", command);
+	str_tolower(command);
+	
+	if( strcmp(command, "get") == 0 ) {
+		sprintf(buffer, "GET /bin HTTP/1.1\r\nHost: %s:%s\r\n\r\n", str_ip, str_port);
+		write(sock, buffer, strlen(buffer));
+		
+		http_response response;
+		memset(&response, 0, sizeof(response));
+		
+		read_response_by_method(sock, &response);
+		printf("%s\n", response.body);
+	}
+}
+
 void read_response_by_method(int sock, http_response* response) {
 	char buffer[MAX_LENGTH] = { 0, };
 	int length;
@@ -86,24 +105,5 @@ void read_response_by_method(int sock, http_response* response) {
 		}
 		
 		strcat(response->body, buffer);
-	}
-}
-
-void work(int sock) {
-	char buffer[MAX_LENGTH] = { 0, };
-	char command[16] = { 'g', 'e', 't', };
-	printf("command : ");
-	scanf("%s", command);
-	str_tolower(command);
-	
-	if( strcmp(command, "get") == 0 ) {
-		sprintf(buffer, "GET /bin HTTP/1.1\r\nHost: %s:%s\r\n\r\n", str_ip, str_port);
-		write(sock, buffer, strlen(buffer));
-		
-		http_response response;
-		memset(&response, 0, sizeof(response));
-		
-		read_response_by_method(sock, &response);
-		printf("%s\n", response.body);
 	}
 }
