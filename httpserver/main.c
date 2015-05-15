@@ -5,32 +5,13 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include "data_structure.h"
+#include "util.h"
 
 #define SERVER_STRING "Server: httpserver/0.0.1\r\n"
-
-#define MAX_LENGTH 1024
-#define MAX_LENGTH_METHOD 16
-#define MAX_LENGTH_URL 128
-#define MAX_LENGTH_VERSION 128
-#define MAX_NUM_OF_HEADER 32
-#define MAX_LENGTH_HEADER 128
 #define PORT 8888
 
-#define ERROR_LOGGING(content) { fprintf(stderr, "%d : %s\n", __LINE__, (content)); exit(1); }
 
-
-typedef struct http_request {
-	int sock;
-	char method[MAX_LENGTH_METHOD];
-	char url[MAX_LENGTH_URL];
-	char version[MAX_LENGTH_VERSION];
-	int header_count;
-	char headers[MAX_NUM_OF_HEADER][MAX_LENGTH_HEADER];
-	char body[MAX_LENGTH];
-} http_request;
-
-
-char* tokenizing_multi_character_delim(char* dst, char* src, char* delim);
 int get_list_of_files(const char* path, char* content);
 int get_content_of_file(const char* path, char* content);
 int handle_request(int sock);
@@ -302,16 +283,6 @@ int process_request(const struct http_request* request, char* response) {
 	return -1;
 }
 
-char* tokenizing_multi_character_delim(char* dst, char* src, char* delim) {
-	char *next = strstr(src, delim);
-	if( next == NULL ) {
-		strcpy(dst, src);
-		return NULL;
-	}
-	strncpy(dst, src, next - src);
-	return next + strlen(delim);
-}
-
 void parsing_http_request(struct http_request* request, char* message) {
 	char *last = message;
 	char header_part[MAX_LENGTH_HEADER] = { 0, };
@@ -336,11 +307,6 @@ void parsing_http_request(struct http_request* request, char* message) {
 int read_all_data(int sock_client, char* buffer) {
 	ssize_t len = recv(sock_client, buffer, MAX_LENGTH, 0);
 	return (int)len;
-}
-
-void clear_recv_buffer(int sock_client) {
-	char buffer[MAX_LENGTH];
-	read(sock_client, buffer, MAX_LENGTH);
 }
 
 int handle_request(int sock) {
