@@ -72,7 +72,7 @@ int get_list_of_files(const char* path, char* content) {
 		return -1;
 	}
 	
-	strcat(content, "[");
+	char json_array_inside[MAX_LENGTH] = { 0, };
 	{
 		fgets(buffer, MAX_LENGTH, process_fp);
 		while(fgets(buffer, MAX_LENGTH, process_fp) != NULL) {
@@ -102,12 +102,15 @@ int get_list_of_files(const char* path, char* content) {
 					"size", str_size,
 					"time", str_time,
 					"name", str_name);
-			strcat(content, tmp);
+			strcat(json_array_inside, tmp);
+		}
+		int length_json_array_inside = (int)strlen(json_array_inside);
+		if( length_json_array_inside > 0 ) {
+			json_array_inside[length_json_array_inside - 1] = 0;
 		}
 	}
-	content[strlen(content) - 1] = 0;
-	strcat(content, "]");
 	pclose(process_fp);
+	sprintf(content, "[%s]", json_array_inside);
 	
 	return 1;
 }
@@ -122,8 +125,9 @@ int get_list_of_files_searched(const char* path, const char* query, char* conten
 	if (process_fp == NULL)	{
 		return -1;
 	}
-	
-	strcat(content, "[");
+
+	char json_array_inside[MAX_LENGTH] = { 0, };
+	memset(json_array_inside, 0, sizeof(json_array_inside));
 	{
 		fgets(buffer, MAX_LENGTH, process_fp);
 		while(fgets(buffer, MAX_LENGTH, process_fp) != NULL) {
@@ -173,12 +177,15 @@ int get_list_of_files_searched(const char* path, const char* query, char* conten
 					"size", str_size,
 					"time", str_time,
 					"name", str_name);
-			strcat(content, tmp);
+			strcat(json_array_inside, tmp);
+		}
+		int length_json_array_inside = (int)strlen(json_array_inside);
+		if( length_json_array_inside > 0 ) {
+			json_array_inside[length_json_array_inside - 1] = 0;
 		}
 	}
-	content[strlen(content) - 1] = 0;
-	strcat(content, "]");
 	pclose(process_fp);
+	sprintf(content, "[%s]", json_array_inside);
 	
 	return 1;
 }
