@@ -27,6 +27,7 @@ void response_201(int sock,
 	const char* content);
 void response_400(int sock);
 void response_404(int sock);
+void response_405(int sock);
 
 
 void random_string(char *dest, int length) {
@@ -273,13 +274,12 @@ int process_request_post(const struct http_request* request, char* response) {
 		} else {
 			if( strlen(request->body) > 0 && 
 				request->body[0] == 'q' && request->body[1] == '=' ) {
-				printf("search\n");
 				char content[MAX_LENGTH] = { 0, };
 				get_list_of_files_searched(path, request->body + 2, content);
 				response_200(request->sock, "", content);
 				return 1;
 			} else {
-				response_400(request->sock);
+				response_405(request->sock);
 				return -1;
 			}
 		}
@@ -340,6 +340,11 @@ int process_request_put(const struct http_request* request, char* response) {
 
 		response_200(request->sock, "", request->body);
 		return 1;
+	}
+
+	if( is_directory(stat_buffer) && strlen(request->body) > 0 ) {
+		response_405(request->sock);
+		return -1;
 	}
 	
 	response_400(request->sock);
@@ -563,6 +568,18 @@ void response_400(int sock) {
 void response_404(int sock) {
 	char response[MAX_LENGTH];
 	sprintf(response, "HTTP/1.1 404 Not Found\r\n");
+	send(sock, response, strlen(response), 0);
+	sprintf(response, SERVER_STRING);
+	send(sock, response, strlen(response), 0);
+	sprintf(response, "Content-Type: text/plain; charset=utf-8\r\n");
+	send(sock, response, strlen(response), 0);
+	sprintf(response, "\r\n");
+	send(sock, response, strlen(response), 0);
+}
+
+void response_405(int sock) {
+	char response[MAX_LENGTH];
+	sprintf(response, "HTTP/1.1 405 Method not allowed\r\n");
 	send(sock, response, strlen(response), 0);
 	sprintf(response, SERVER_STRING);
 	send(sock, response, strlen(response), 0);
