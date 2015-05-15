@@ -208,21 +208,36 @@ int process_request_put(const struct http_request* request, char* response) {
 	sprintf(path, ".%s", request->url);
 	
 	struct stat stat_buffer;
-	if( stat(path, &stat_buffer) == -1 && strlen(request->body) == 0 ) {
-		// create new directory
-		char process_str[MAX_LENGTH];
-		sprintf(process_str, "mkdir -p %s", path);
-		printf("%s\n", process_str);
-		
-		char buffer[MAX_LENGTH];
-		FILE *process_fp = popen(process_str, "r");
-		if (process_fp == NULL)	{
-			return -1;
+	if( stat(path, &stat_buffer) == -1 ) {
+		if( strlen(request->body) == 0 ) {
+			// create new directory
+			char process_str[MAX_LENGTH];
+			sprintf(process_str, "mkdir -p %s", path);
+			printf("%s\n", process_str);
+			
+			char buffer[MAX_LENGTH];
+			FILE *process_fp = popen(process_str, "r");
+			if (process_fp == NULL)	{
+				return -1;
+			}
+			pclose(process_fp);
+			
+			response_201(request->sock, "", "");
+			return 1;
+		} else {
+			FILE *fp = fopen(path, "w");
+			if( ! fp ) {
+				fclose(fp);
+				response_400(request->sock);
+			}
+
+			fprintf(fp, "%s", request->body);
+
+			fclose(fp);
+
+			response_201(request->sock, "", request->body);
+			return 1;
 		}
-		pclose(process_fp);
-		
-		response_201(request->sock, "", "");
-		return 1;
 	}
 	
 	if( is_file(stat_buffer) ) {
