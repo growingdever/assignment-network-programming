@@ -105,6 +105,78 @@ int get_list_of_files(const char* path, char* content) {
 			strcat(content, tmp);
 		}
 	}
+	content[strlen(content) - 1] = 0;
+	strcat(content, "]");
+	pclose(process_fp);
+	
+	return 1;
+}
+
+int get_list_of_files_searched(const char* path, const char* query, char* content) {
+	char process_str[MAX_LENGTH];
+	sprintf(process_str, "ls -al %s", path);
+	printf("%s\n", process_str);
+	
+	char buffer[MAX_LENGTH];
+	FILE *process_fp = popen(process_str, "r");
+	if (process_fp == NULL)	{
+		return -1;
+	}
+	
+	strcat(content, "[");
+	{
+		fgets(buffer, MAX_LENGTH, process_fp);
+		while(fgets(buffer, MAX_LENGTH, process_fp) != NULL) {
+			char *str_permission = strtok(buffer, " ");
+			char *str_link = strtok(NULL, " ");
+			char *str_owner = strtok(NULL, " ");
+			char *str_group = strtok(NULL, " ");
+			char *str_size = strtok(NULL, " ");
+			char *str_time = strtok(NULL, " ");
+			strtok(NULL, " ");
+			strtok(NULL, " ");
+			char *str_name = strtok(NULL, " \n");
+
+			char curr_file_path[MAX_LENGTH];
+			sprintf(curr_file_path, "%s/%s", path, str_name);
+			FILE *curr_file = fopen(curr_file_path, "r");
+			if( ! curr_file ) {
+				fclose(curr_file);
+				return -1;
+			}
+
+			char file_content[MAX_LENGTH] = { 0, };
+			char line[MAX_LENGTH];
+			while(fgets(line, MAX_LENGTH, curr_file) != NULL) {
+				strcat(file_content, line);
+			}
+
+			fclose(curr_file);
+
+			if( strstr(file_content, query) == NULL ) {
+				continue;
+			}
+			
+			char tmp[MAX_LENGTH];
+			sprintf(tmp, "{ \
+					\"%s\" : \"%s\" \
+					\"%s\" : \"%s\" \
+					\"%s\" : \"%s\" \
+					\"%s\" : \"%s\" \
+					\"%s\" : \"%s\" \
+					\"%s\" : \"%s\" \
+					\"%s\" : \"%s\" },",
+					"permission", str_permission,
+					"link", str_link,
+					"owner", str_owner,
+					"group", str_group,
+					"size", str_size,
+					"time", str_time,
+					"name", str_name);
+			strcat(content, tmp);
+		}
+	}
+	content[strlen(content) - 1] = 0;
 	strcat(content, "]");
 	pclose(process_fp);
 	
@@ -173,23 +245,37 @@ int process_request_post(const struct http_request* request, char* response) {
 	}
 	
 	if( is_directory(stat_buffer) ) {
-		char new_filename[16];
-		random_string(new_filename, 8);
-		
-		sprintf(path, ".%s/%s", request->url, new_filename);
-		
-		FILE *new_fp = fopen(path, "w");
-		fprintf(new_fp, "%s", request->body);
-		fclose(new_fp);
-		
-		char host_url[MAX_LENGTH];
-		find_header_value(request, "Host", host_url);
-		
-		char location_part[MAX_LENGTH];
-		sprintf(location_part, "Location: %s%s\r\n", host_url, path + 1);
+		if( strlen(request->body) == 0 ) {
+			char new_filename[16];
+			random_string(new_filename, 8);
+			
+			sprintf(path, ".%s/%s", request->url, new_filename);
+			
+			FILE *new_fp = fopen(path, "w");
+			fprintf(new_fp, "%s", request->body);
+			fclose(new_fp);
+			
+			char host_url[MAX_LENGTH];
+			find_header_value(request, "Host", host_url);
+			
+			char location_part[MAX_LENGTH];
+			sprintf(location_part, "Location: %s%s\r\n", host_url, path + 1);
 
-		response_201(request->sock, location_part, request->body);
-		return 1;		
+			response_201(request->sock, location_part, request->body);
+			return 1;
+		} else {
+			if( strlen(request->body) > 0 && 
+				request->body[0] == 'q' && request->body[1] == '=' ) {
+				printf("search\n");
+				char content[MAX_LENGTH] = { 0, };
+				get_list_of_files_searched(path, request->body + 2, content);
+				response_200(request->sock, "", content);
+				return 1;
+			} else {
+				response_400(request->sock);
+				return -1;
+			}
+		}
 	} else if( is_file(stat_buffer) ) {
 		FILE *fp = fopen(path, "a");
 		fprintf(fp, "%s", request->body);
