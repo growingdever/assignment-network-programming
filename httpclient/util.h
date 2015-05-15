@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+#include "data_structure.h"
 
 #define ERROR_LOGGING(content) { fprintf(stderr, "%d : %s\n", __LINE__, (content)); exit(1); }
 
@@ -73,6 +74,25 @@ ssize_t read_line(int fd, void *buffer, size_t n)
 	return totRead;
 }
 
+int my_gets(char* dest) {
+	fseek(stdin, 0, SEEK_END);
+
+	int length = 0;
+	while(1) {
+		char c = getchar();
+		dest[length++] = c;
+		if( c == '\n' ) {
+			break;
+		}
+	}
+	if( strcmp(dest, "\r\n") == 0 || strcmp(dest, "\n") == 0 ) { 
+		memset(dest, 0, strlen(dest));
+		length = 0;
+	}
+
+	return length;
+}
+
 void str_tolower(char* str) {
 	int length = (int)strlen(str);
 	for( int i = 0; i < length; i ++ ) {
@@ -80,6 +100,17 @@ void str_tolower(char* str) {
 			str[i] += 'a' - 'A';
 		}
 	}
+}
+
+void tostring_response(char* dest, const http_response* response) {
+	char buffer[MAX_LENGTH];
+	sprintf(buffer, "%s %d %s\r\n", response->version, response->status_code, response->status_message);
+	strcat(dest, buffer);
+	for( int i = 0; i < response->num_of_header; i ++ ) {
+		strcat(dest, response->headers[i]);
+	}
+	sprintf(buffer, "\r\n%s", response->body);
+	strcat(dest, buffer);
 }
 
 
