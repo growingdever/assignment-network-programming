@@ -215,6 +215,7 @@ int process_request_get(const struct http_request* request, char* response) {
 	
 	struct stat stat_buffer;
 	if( stat(path, &stat_buffer) == -1 ) {
+		response_404(request->sock);
 		return -1;
 	}
 	
@@ -229,6 +230,7 @@ int process_request_get(const struct http_request* request, char* response) {
 		return 1;
 	} else if( (stat_buffer.st_mode & S_IFMT) == S_IFREG ) {
 		if( get_content_of_file(path, content) < 0 ) {
+			printf("file not exist\n");
 			response_404(request->sock);
 			return -1;
 		}
