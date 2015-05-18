@@ -49,19 +49,6 @@ int is_file(const struct stat stat_buffer) {
 	return (stat_buffer.st_mode & S_IFMT) == S_IFREG;
 }
 
-void find_header_value(const struct http_request* request, const char* key, char* dest) {
-	for( int i = 0; i < request->header_count; i ++ ) {
-		char header_key_only[MAX_LENGTH_HEADER];
-		tokenizing_multi_character_delim(header_key_only, (char*)request->headers[i], ": ");
-		if( strcmp(header_key_only, key) == 0 ) {
-			tokenizing_multi_character_delim(dest, 
-				(char*)request->headers[i] + strlen(header_key_only) + 2, 
-				"\r\n");
-			return;
-		}
-	}
-}
-
 int get_list_of_files(const char* path, char* content) {
 	char process_str[MAX_LENGTH];
 	sprintf(process_str, "ls -al %s", path);
@@ -209,7 +196,7 @@ int get_content_of_file(const char* path, char* content) {
 	return 1;
 }
 
-int process_request_get(const struct http_request* request, char* response) {
+int process_request_get(const struct http_request* request) {
 	char path[32];
 	sprintf(path, ".%s", request->url);
 	
@@ -244,7 +231,7 @@ int process_request_get(const struct http_request* request, char* response) {
 	return -1;
 }
 
-int process_request_post(const struct http_request* request, char* response) {
+int process_request_post(const struct http_request* request) {
 	char path[64];
 	sprintf(path, ".%s", request->url);
 	
@@ -298,7 +285,7 @@ int process_request_post(const struct http_request* request, char* response) {
 	return -1;
 }
 
-int process_request_put(const struct http_request* request, char* response) {
+int process_request_put(const struct http_request* request) {
 	char path[64];
 	sprintf(path, ".%s", request->url);
 	
@@ -353,7 +340,7 @@ int process_request_put(const struct http_request* request, char* response) {
 	return -1;
 }
 
-int process_request_delete(const struct http_request* request, char* response) {
+int process_request_delete(const struct http_request* request) {
 	char path[64];
 	sprintf(path, ".%s", request->url);
 	
@@ -383,15 +370,15 @@ int process_request_delete(const struct http_request* request, char* response) {
 	return 1;
 }
 
-int process_request(const struct http_request* request, char* response) {
+int process_request(const struct http_request* request) {
 	if( strcmp(request->method, "GET") == 0 ) {
-		return process_request_get(request, response);
+		return process_request_get(request);
 	} else if( strcmp(request->method, "POST") == 0 ) {
-		return process_request_post(request, response);
+		return process_request_post(request);
 	} else if( strcmp(request->method, "PUT") == 0 ) {
-		return process_request_put(request, response);
+		return process_request_put(request);
 	} else if( strcmp(request->method, "DELETE") == 0 ) {
-		return process_request_delete(request, response);
+		return process_request_delete(request);
 	}
 	
 	response_400(request->sock);
@@ -437,11 +424,10 @@ int handle_request(int sock) {
 	parsing_http_request(&request, str);
 	
 	char response[MAX_LENGTH] = { 0, };
-	if( process_request(&request, response) < 0 ) {
+	if( process_request(&request) < 0 ) {
 		fprintf(stderr, "failed to process request\n");
 	}
 
-	write(sock, response, strlen(response));
 	shutdown(sock, SHUT_WR);
 	clear_recv_buffer(sock);
 	close(sock);

@@ -102,6 +102,19 @@ void str_tolower(char* str) {
 	}
 }
 
+void find_header_value(const struct http_request* request, const char* key, char* dest) {
+	for( int i = 0; i < request->header_count; i ++ ) {
+		char header_key_only[MAX_LENGTH_HEADER];
+		tokenizing_multi_character_delim(header_key_only, (char*)request->headers[i], ": ");
+		if( strcmp(header_key_only, key) == 0 ) {
+			tokenizing_multi_character_delim(dest, 
+				(char*)request->headers[i] + strlen(header_key_only) + 2, 
+				"\r\n");
+			return;
+		}
+	}
+}
+
 void tostring_response(char* dest, const http_response* response) {
 	char buffer[MAX_LENGTH];
 	sprintf(buffer, "%s %d %s\r\n", response->version, response->status_code, response->status_message);

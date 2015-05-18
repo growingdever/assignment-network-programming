@@ -102,6 +102,8 @@ void work(int sock) {
 		return;
 	}
 
+	pretty_print(" R E Q E S T ", buffer);
+
 	write(sock, buffer, strlen(buffer));
 
 	http_response response;
@@ -212,11 +214,12 @@ void build_request_delete(char* dest, const char* url) {
 void pretty_print(char* title, char* content) {
 	int length_response_title = strlen(title);
 	int iter = (console_width - length_response_title) / 2;
-	for( int i = 0; i < iter; i ++ ) {
+	int additional = (console_width - length_response_title) % 2;
+	for( int i = 0; i < iter + additional; i ++ ) {
 		printf("=");
 	}
 	printf("%s", title);
-	for( int i = 0; i < iter; i ++ ) {
+	for( int i = 0; i < iter + additional; i ++ ) {
 		printf("=");
 	}
 	printf("\n%s\n", content);
