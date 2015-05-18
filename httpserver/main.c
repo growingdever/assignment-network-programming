@@ -10,6 +10,7 @@
 
 #define SERVER_STRING "Server: httpserver/0.0.1\r\n"
 #define PORT 8888
+#define FILE_INFO_JSON_FORMAT "{ \"%s\" : \"%s\" \"%s\" : \"%s\" \"%s\" : \"%s\" \"%s\" : \"%s\" \"%s\" : \"%s\" \"%s\" : \"%s\" \"%s\" : \"%s\" },"
 
 
 int get_list_of_files(const char* path, char* content);
@@ -75,14 +76,7 @@ int get_list_of_files(const char* path, char* content) {
 			char *str_name = strtok(NULL, " \n");
 			
 			char tmp[MAX_LENGTH];
-			sprintf(tmp, "{ \
-					\"%s\" : \"%s\" \
-					\"%s\" : \"%s\" \
-					\"%s\" : \"%s\" \
-					\"%s\" : \"%s\" \
-					\"%s\" : \"%s\" \
-					\"%s\" : \"%s\" \
-					\"%s\" : \"%s\" },",
+			sprintf(tmp, FILE_INFO_JSON_FORMAT,
 					"permission", str_permission,
 					"link", str_link,
 					"owner", str_owner,
@@ -99,7 +93,7 @@ int get_list_of_files(const char* path, char* content) {
 	}
 	pclose(process_fp);
 	sprintf(content, "[%s]", json_array_inside);
-	
+
 	return 1;
 }
 
@@ -150,14 +144,7 @@ int get_list_of_files_searched(const char* path, const char* query, char* conten
 			}
 			
 			char tmp[MAX_LENGTH];
-			sprintf(tmp, "{ \
-					\"%s\" : \"%s\" \
-					\"%s\" : \"%s\" \
-					\"%s\" : \"%s\" \
-					\"%s\" : \"%s\" \
-					\"%s\" : \"%s\" \
-					\"%s\" : \"%s\" \
-					\"%s\" : \"%s\" },",
+			sprintf(tmp, FILE_INFO_JSON_FORMAT,
 					"permission", str_permission,
 					"link", str_link,
 					"owner", str_owner,
