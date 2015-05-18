@@ -224,6 +224,29 @@ int process_request_post(const struct http_request* request) {
 	
 	struct stat stat_buffer;
 	if( stat(path, &stat_buffer) == -1 ) {
+		if( strlen(request->body) > 0 ) {
+			FILE *new_fp = fopen(path, "w");
+			if( ! new_fp ) {
+				fclose(new_fp);
+				// try to create file at not be existed directory
+				// or some other reasons...
+				response_405(request->sock);
+				return -1;
+			}
+
+			fprintf(new_fp, "%s", request->body);
+			fclose(new_fp);
+			
+			char host_url[MAX_LENGTH];
+			find_header_value(request, "Host", host_url);
+			
+			char location_part[MAX_LENGTH];
+			sprintf(location_part, "Location: %s%s\r\n", host_url, path + 1);
+
+			response_201(request->sock, location_part, request->body);
+			return 1;
+		}
+
 		response_404(request->sock);
 		return -1;
 	}
