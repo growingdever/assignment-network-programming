@@ -252,7 +252,13 @@ int process_request_post(const struct http_request* request) {
 	}
 	
 	if( is_directory(stat_buffer) ) {
-		if( strlen(request->body) == 0 ) {
+		if( strlen(request->body) > 0 && 
+			request->body[0] == 'q' && request->body[1] == '=' ) {
+			char content[MAX_LENGTH] = { 0, };
+			get_list_of_files_searched(path, request->body + 2, content);
+			response_200(request->sock, "", content);
+			return 1;
+		} else {
 			char new_filename[16];
 			random_string(new_filename, 8);
 			
@@ -262,7 +268,7 @@ int process_request_post(const struct http_request* request) {
 			fprintf(new_fp, "%s", request->body);
 			fclose(new_fp);
 			
-			char host_url[MAX_LENGTH];
+			char host_url[MAX_LENGTH] = { 0, };
 			find_header_value(request, "Host", host_url);
 			
 			char location_part[MAX_LENGTH];
@@ -270,17 +276,6 @@ int process_request_post(const struct http_request* request) {
 
 			response_201(request->sock, location_part, request->body);
 			return 1;
-		} else {
-			if( strlen(request->body) > 0 && 
-				request->body[0] == 'q' && request->body[1] == '=' ) {
-				char content[MAX_LENGTH] = { 0, };
-				get_list_of_files_searched(path, request->body + 2, content);
-				response_200(request->sock, "", content);
-				return 1;
-			} else {
-				response_405(request->sock);
-				return -1;
-			}
 		}
 	} else if( is_file(stat_buffer) ) {
 		FILE *fp = fopen(path, "a");
