@@ -15,7 +15,7 @@
 
 
 void work(int sock);
-void read_response_by_method(int sock, http_response* response);
+void read_response(int sock, http_response* response);
 void build_request_get(char* dest, const char* url);
 void build_request_post(char* dest, const char* url, const char* content);
 void build_request_put(char* dest, const char* url, const char* content);
@@ -109,13 +109,13 @@ void work(int sock) {
 	http_response response;
 	memset(&response, 0, sizeof(response));
 	
-	read_response_by_method(sock, &response);
+	read_response(sock, &response);
 	char response_string[MAX_LENGTH] = { 0, };
 	tostring_response(response_string, &response);
 	pretty_print(" R E S P O N S E ", response_string);
 }
 
-void read_response_by_method(int sock, http_response* response) {
+void read_response(int sock, http_response* response) {
 	char buffer[MAX_LENGTH] = { 0, };
 	int length;
 	
