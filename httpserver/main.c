@@ -9,14 +9,14 @@
 #include "util.h"
 
 #define SERVER_STRING "Server: httpserver/0.0.1\r\n"
-#define PORT 8888
+#define ARGV_INDEX_PORT 1
 #define FILE_INFO_JSON_FORMAT "{ \"%s\" : \"%s\" \"%s\" : \"%s\" \"%s\" : \"%s\" \"%s\" : \"%s\" \"%s\" : \"%s\" \"%s\" : \"%s\" \"%s\" : \"%s\" },"
 
 
 int get_list_of_files(const char* path, char* content);
 int get_content_of_file(const char* path, char* content);
 int handle_request(int sock);
-int init_listening_socket(struct sockaddr_in* addr);
+int init_listening_socket(struct sockaddr_in* addr, int port);
 void response_200(int sock, 
 	const char* extra_header, 
 	const char* content);
@@ -101,6 +101,7 @@ int get_list_of_files_searched(const char* path, const char* query, char* conten
 	char process_str[MAX_LENGTH];
 	sprintf(process_str, "ls -al %s", path);
 	printf("%s\n", process_str);
+	printf("query : %s\n", query);
 	
 	char buffer[MAX_LENGTH];
 	FILE *process_fp = popen(process_str, "r");
@@ -221,62 +222,68 @@ int process_request_get(const struct http_request* request) {
 int process_request_post(const struct http_request* request) {
 	char path[64];
 	sprintf(path, ".%s", request->url);
-	
-	struct stat stat_buffer;
-	if( stat(path, &stat_buffer) == -1 ) {
-		if( strlen(request->body) > 0 ) {
-			FILE *new_fp = fopen(path, "w");
-			if( ! new_fp ) {
-				fclose(new_fp);
-				// try to create file at not be existed directory
-				// or some other reasons...
-				response_405(request->sock);
-				return -1;
-			}
 
-			fprintf(new_fp, "%s", request->body);
-			fclose(new_fp);
-			
-			char host_url[MAX_LENGTH];
-			find_header_value(request, "Host", host_url);
-			
-			char location_part[MAX_LENGTH];
-			sprintf(location_part, "Location: %s%s\r\n", host_url, path + 1);
-
-			response_201(request->sock, location_part, request->body);
-			return 1;
-		}
-
-		response_404(request->sock);
-		return -1;
+	for(int i = 0; i < request->header_count; i ++ ) {
+		printf("%s\n", request->headers[i]);
 	}
-	
-	if( is_directory(stat_buffer) ) {
-		if( strlen(request->body) > 0 && 
-			request->body[0] == 'q' && request->body[1] == '=' ) {
+
+	char content_type[MAX_LENGTH] = { 0, };
+	find_header_value(request, "Content-Type", content_type);
+	if( strcmp(content_type, "application/x-www-form-urlencoded") == 0 ) {
+		if( request->body[0] == 'q' && request->body[1] == '=' ) {
+			// searching
 			char content[MAX_LENGTH] = { 0, };
 			get_list_of_files_searched(path, request->body + 2, content);
 			response_200(request->sock, "", content);
 			return 1;
-		} else {
-			char new_filename[16];
-			random_string(new_filename, 8);
-			
-			sprintf(path, ".%s/%s", request->url, new_filename);
-			
-			FILE *new_fp = fopen(path, "w");
-			fprintf(new_fp, "%s", request->body);
-			fclose(new_fp);
-			
-			char host_url[MAX_LENGTH] = { 0, };
-			find_header_value(request, "Host", host_url);
-			
-			char location_part[MAX_LENGTH];
-			sprintf(location_part, "Location: %s%s\r\n", host_url, path + 1);
-
-			response_201(request->sock, location_part, request->body);
-			return 1;
 		}
+
+		response_405(request->sock);
+		return -1;
+	}
+	
+	struct stat stat_buffer;
+	if( stat(path, &stat_buffer) == -1 ) {
+		FILE *new_fp = fopen(path, "w");
+		if( ! new_fp ) {
+			fclose(new_fp);
+			// try to create file at not be existed directory
+			// or some other reasons...
+			response_405(request->sock);
+			return -1;
+		}
+
+		fprintf(new_fp, "%s", request->body);
+		fclose(new_fp);
+		
+		char host_url[MAX_LENGTH];
+		find_header_value(request, "Host", host_url);
+		
+		char location_part[MAX_LENGTH];
+		sprintf(location_part, "Location: %s%s\r\n", host_url, path + 1);
+
+		response_201(request->sock, location_part, request->body);
+		return 1;
+	}
+	
+	if( is_directory(stat_buffer) ) {
+		char new_filename[16];
+		random_string(new_filename, 8);
+		
+		sprintf(path, ".%s/%s", request->url, new_filename);
+		
+		FILE *new_fp = fopen(path, "w");
+		fprintf(new_fp, "%s", request->body);
+		fclose(new_fp);
+		
+		char host_url[MAX_LENGTH] = { 0, };
+		find_header_value(request, "Host", host_url);
+		
+		char location_part[MAX_LENGTH];
+		sprintf(location_part, "Location: %s%s\r\n", host_url, path + 1);
+
+		response_201(request->sock, location_part, request->body);
+		return 1;
 	} else if( is_file(stat_buffer) ) {
 		FILE *fp = fopen(path, "a");
 		fprintf(fp, "%s", request->body);
@@ -440,10 +447,10 @@ int handle_request(int sock) {
 	return 1;
 }
 
-int init_listening_socket(struct sockaddr_in* addr) {
+int init_listening_socket(struct sockaddr_in* addr, int port) {
 	addr->sin_family = AF_INET;
 	addr->sin_addr.s_addr = htons(INADDR_ANY);
-	addr->sin_port = htons(PORT);
+	addr->sin_port = htons(port);
 
 	int sock_listen = socket(AF_INET, SOCK_STREAM, 0);
 	if( sock_listen < 0 ) {
@@ -458,12 +465,17 @@ int init_listening_socket(struct sockaddr_in* addr) {
 	return sock_listen;
 }
 
-int main() {
+int main(int argc, char const *argv[])
+{
+	if( argc <= 1 ) {
+		ERROR_LOGGING("usage:\narg1 : port");
+	}
+
 	printf("start\n");
 	
 	struct sockaddr_in servaddr;
 	memset(&servaddr, 0, sizeof(servaddr));
-	int sock_listen = init_listening_socket(&servaddr);
+	int sock_listen = init_listening_socket(&servaddr, atoi(argv[ARGV_INDEX_PORT]));
 
 	bind(sock_listen, (struct sockaddr *) &servaddr, sizeof(servaddr));
 	

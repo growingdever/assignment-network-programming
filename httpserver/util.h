@@ -104,7 +104,7 @@ void str_tolower(char* str) {
 
 void find_header_value(const struct http_request* request, const char* key, char* dest) {
 	for( int i = 0; i < request->header_count; i ++ ) {
-		char header_key_only[MAX_LENGTH_HEADER];
+		char header_key_only[MAX_LENGTH_HEADER] = { 0, };
 		tokenizing_multi_character_delim(header_key_only, (char*)request->headers[i], ": ");
 		if( strcmp(header_key_only, key) == 0 ) {
 			tokenizing_multi_character_delim(dest, 

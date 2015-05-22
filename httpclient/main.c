@@ -18,6 +18,7 @@ void work(int sock);
 void read_response(int sock, http_response* response);
 void build_request_get(char* dest, const char* url);
 void build_request_post(char* dest, const char* url, const char* content);
+void build_request_post_searching(char* dest, const char* url, const char* content);
 void build_request_put(char* dest, const char* url, const char* content);
 void build_request_delete(char* dest, const char* url);
 void pretty_print(char* title, char* content);
@@ -85,11 +86,19 @@ void work(int sock) {
 	if( strcmp(command, "get") == 0 ) {
 		build_request_get(buffer, url);
 	} else if( strcmp(command, "post") == 0 ) {
+		int is_searching = 0;
+		printf("do you want to search? : ");
+		scanf("%d", &is_searching);
+
 		char content[MAX_LENGTH] = { 0, };
 		printf("body : ");
-		int length = my_gets(content);
-		
-		build_request_post(buffer, url, content);
+		if( is_searching ) {
+			scanf("%s", content);
+			build_request_post_searching(buffer, url, content);
+		} else {
+			int length = my_gets(content);
+			build_request_post(buffer, url, content);
+		}
 	} else if( strcmp(command, "put") == 0 ) {
 		char content[MAX_LENGTH] = { 0, };
 		printf("body : ");
@@ -168,6 +177,29 @@ void build_request_post(char* dest, const char* url, const char* body) {
 	sprintf(buffer, "POST %s HTTP/1.1\r\n", url);
 	strcat(dest, buffer);
 	sprintf(buffer, "Host: %s\r\n", str_ip);
+	strcat(dest, buffer);
+	sprintf(buffer, "Content-Length: %d\r\n", length);
+	strcat(dest, buffer);
+	sprintf(buffer, "\r\n");
+	strcat(dest, buffer);
+	if( body != NULL ) {
+		sprintf(buffer, "%s\r\n", body);
+		strcat(dest, buffer);
+	}
+}
+
+void build_request_post_searching(char* dest, const char* url, const char* body) {
+	char buffer[MAX_LENGTH];
+	int length = 0;
+	if( body != NULL ) {
+		length = (int)strlen(body);
+	}
+
+	sprintf(buffer, "POST %s HTTP/1.1\r\n", url);
+	strcat(dest, buffer);
+	sprintf(buffer, "Host: %s\r\n", str_ip);
+	strcat(dest, buffer);
+	sprintf(buffer, "Content-Type: %s\r\n", "application/x-www-form-urlencoded");
 	strcat(dest, buffer);
 	sprintf(buffer, "Content-Length: %d\r\n", length);
 	strcat(dest, buffer);
