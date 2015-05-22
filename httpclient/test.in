@@ -1,0 +1,40 @@
+get
+/
+put
+/test
+
+post
+/test
+0
+new file
+get
+/test/5PN2qmWq
+put
+/test/aaa
+new file2
+put
+/test/bbb
+new file3
+get
+/test
+post
+/test
+1
+q
+post
+/test
+1
+q=new
+delete
+/test/aaa
+get
+/test
+get
+/test/aaa
+post
+/test
+0
+change
+put
+/test
+is it directory?
