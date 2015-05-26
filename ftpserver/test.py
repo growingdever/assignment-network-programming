@@ -16,6 +16,7 @@ except Exception as e:
 	print e
 	sys.exit()
 
+
 sock_client.send('PWD\r\n')
 data = sock_client.recv(MAX_LENGTH)
 data = until_crlf(data)
@@ -60,12 +61,37 @@ else:
 	print 'pass 4'
 
 
+filename = 'screenshot.png'
+sock_client.send('STOR %s\r\n' % filename)
+data = sock_client.recv(MAX_LENGTH)
+data = until_crlf(data)
+print data
+if data.split()[0] != 'OK':
+	print 'test fail'
+	sys.exit()
+else:
+	new_port = data.split()[1]
+	sock_client_data = socket(AF_INET, SOCK_STREAM)
+	try:
+		sock_client_data.connect((HOST, (int)(new_port)))
+	except Exception as e:
+		print e
+		print 'test fail'
+		sys.exit()
+
+	with open('/Users/loki/Documents/%s' % filename, 'rb') as f:
+		bytes_read = f.read(MAX_LENGTH)
+		while bytes_read:
+			for b in bytes_read:
+				sock_client_data.send(b)
+			bytes_read = f.read(MAX_LENGTH)
+
+	print 'pass 5'
+
+
 sock_client.close()
 
 
-
-# echo -n "CWD /test\r\n" | nc 127.0.0.1 21;
-# echo -n "STOR ~/Documents/jess_in_action_ebook.pdf\r\n" | nc 127.0.0.1 21;
 # echo -n "RETR /test/jess_in_action_ebook.pdf\r\n" | nc 127.0.0.1 21;
 # echo -n "STOR ~/Documents/onemore\r\n" | nc 127.0.0.1 21;
 # echo -n "LIST\r\n" | nc 127.0.0.1 21;

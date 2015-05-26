@@ -13,6 +13,7 @@
 #include "util.h"
 
 #define PORT_FTP_COMMAND 8888
+#define PORT_FTP_DATA_TRANSFER 8889
 #define STR_EQUAL(p, q) strcmp(p, q) == 0
 
 
@@ -22,21 +23,30 @@ void handle_command_pwd(int, char*);
 void handle_command_cwd(int, char*);
 void handle_command_mkd(int, char*);
 void handle_command_nlst(int, char*);
+void handle_command_stor(int, char*);
 int is_file_for_dirent(struct dirent* dir);
 
 
 char WORKING_DIRECTORY[MAX_LENGTH];
 
+int sock_listen_command, sock_listen_data;
 
 int main(int argc, char* argv[]) {
-	struct sockaddr_in servaddr;
-	memset(&servaddr, 0, sizeof(servaddr));
-	int sock_listen = init_listening_socket(&servaddr, PORT_FTP_COMMAND);
+	// for command
+	struct sockaddr_in servaddr_command;
+	memset(&servaddr_command, 0, sizeof(servaddr_command));
+	sock_listen_command = init_listening_socket(&servaddr_command, PORT_FTP_COMMAND);
+	bind(sock_listen_command, (struct sockaddr *) &servaddr_command, sizeof(servaddr_command));
+	listen(sock_listen_command, 10);
 
-	bind(sock_listen, (struct sockaddr *) &servaddr, sizeof(servaddr));
-	listen(sock_listen, 10);
+	// for data transfer
+	struct sockaddr_in servaddr_data;
+	memset(&servaddr_data, 0, sizeof(servaddr_data));
+	sock_listen_data = init_listening_socket(&servaddr_data, PORT_FTP_DATA_TRANSFER);
+	bind(sock_listen_data, (struct sockaddr *) &servaddr_data, sizeof(servaddr_data));
+	listen(sock_listen_data, 10);
 
-	int sock_client = accept(sock_listen, (struct sockaddr*) NULL, NULL);
+	int sock_client = accept(sock_listen_command, (struct sockaddr*) NULL, NULL);
 	if( sock_client < 0 ) {
 		ERROR_LOGGING("failed to accept client socket")
 		return -1;
@@ -86,10 +96,12 @@ int handle_socket(int sock) {
 		handle_command_pwd(sock, str);
 	}  else if( STR_EQUAL(command, "CWD") ) {
 		handle_command_cwd(sock, str);
-	} else if(STR_EQUAL(command, "MKD") ) {
+	} else if( STR_EQUAL(command, "MKD") ) {
 		handle_command_mkd(sock, str);
-	} else if(STR_EQUAL(command, "NLST") ) {
+	} else if( STR_EQUAL(command, "NLST") ) {
 		handle_command_nlst(sock, str);
+	} else if( STR_EQUAL(command, "STOR") ) {
+		handle_command_stor(sock, str);
 	}
 
 	return 1;
@@ -170,6 +182,42 @@ void handle_command_nlst(int sock, char* line) {
 	}
 
 	write(sock, response, strlen(response));
+}
+
+void handle_command_stor(int sock, char* line) {
+	char *target = strtok(NULL, " \r\n");
+
+	char response[MAX_LENGTH] = { 0, };
+	sprintf(response, "OK %d", PORT_FTP_DATA_TRANSFER);
+	write(sock, response, strlen(response));
+
+	int sock_data_channel = accept(sock_listen_data, (struct sockaddr*) NULL, NULL);
+	printf("accept : %d\n", sock_data_channel);
+	if( sock_data_channel < 0 ) {
+		ERROR_LOGGING("failed to accept client socket")
+		return;
+	}
+
+
+	char path[MAX_LENGTH] = { 0, };
+	sprintf(path, "%s/%s", WORKING_DIRECTORY, target);
+	printf("path : %s", path);
+	FILE *output = fopen(path, "wb");
+	if( ! output ) {
+
+	} else {
+		char buffer[MAX_LENGTH] = { 0, };
+		while(1) {
+			memset(buffer, 0, sizeof(buffer));
+			int numRead = read_line(sock_data_channel, buffer, MAX_LENGTH);
+			if( numRead == 0 ) {
+				break;
+			}
+
+			fwrite(buffer, sizeof(char), numRead, output);
+		}
+		fclose(output);
+	}
 }
 
 int is_file_for_dirent(struct dirent* dir) {
