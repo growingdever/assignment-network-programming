@@ -23,6 +23,7 @@ void handle_command_pwd(int, char*);
 void handle_command_cwd(int, char*);
 void handle_command_mkd(int, char*);
 void handle_command_nlst(int, char*);
+void handle_command_list(int, char*);
 void handle_command_stor(int, char*);
 void handle_command_retr(int, char*);
 int is_file_for_dirent(struct dirent* dir);
@@ -101,6 +102,8 @@ int handle_socket(int sock) {
 		handle_command_mkd(sock, str);
 	} else if( STR_EQUAL(command, "NLST") ) {
 		handle_command_nlst(sock, str);
+	} else if( STR_EQUAL(command, "LIST") ) {
+		handle_command_list(sock, str);
 	} else if( STR_EQUAL(command, "STOR") ) {
 		handle_command_stor(sock, str);
 	} else if( STR_EQUAL(command, "RETR") ) {
@@ -170,6 +173,37 @@ void handle_command_nlst(int sock, char* line) {
 			}
 
 			if( is_file_for_dirent(p_dir_node) ) {
+				continue;
+			}
+
+			strcat(response, p_dir_node->d_name);
+			strcat(response, ", ");
+		}
+		closedir (p_root_dir);
+
+		response[strlen(response) - 2] = 0;
+		strcat(response, "\r\n");
+	} else {
+		strcat(response, "fail\r\n");
+	}
+
+	write(sock, response, strlen(response));
+}
+
+void handle_command_list(int sock, char* line) {
+	char response[MAX_LENGTH] = { 0, };
+
+	DIR *p_root_dir;
+	struct dirent *p_dir_node;
+	p_root_dir = opendir(WORKING_DIRECTORY);
+	if (p_root_dir != NULL)	{
+		while (1) {
+			p_dir_node = readdir (p_root_dir);
+			if( p_dir_node == NULL ) { 
+				break;
+			}
+
+			if( ! is_file_for_dirent(p_dir_node) ) {
 				continue;
 			}
 

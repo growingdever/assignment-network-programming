@@ -116,10 +116,48 @@ else:
 	print 'pass 6'
 
 
+filename2 = 'hello.py'
+sock_client.send('STOR %s\r\n' % filename2)
+data = sock_client.recv(MAX_LENGTH)
+data = until_crlf(data)
+print data
+if data.split()[0] != 'OK':
+	print 'test fail'
+	sys.exit()
+else:
+	new_port = data.split()[1]
+	sock_client_data = socket(AF_INET, SOCK_STREAM)
+	try:
+		sock_client_data.connect((HOST, (int)(new_port)))
+	except Exception as e:
+		print e
+		print 'test fail'
+		sys.exit()
+
+	with open('/Users/loki/Documents/%s' % filename2, 'rb') as f:
+		bytes_read = f.read(MAX_LENGTH)
+		while bytes_read:
+			for b in bytes_read:
+				sock_client_data.send(b)
+			bytes_read = f.read(MAX_LENGTH)
+	sock_client_data.close();
+	print 'pass 7'
+
+
+sock_client.send('LIST\r\n')
+data = sock_client.recv(MAX_LENGTH)
+data = until_crlf(data)
+print data
+if data == 'fail':
+	print 'test fail'
+	sys.exit()
+else:
+	print 'pass 8'
+
+
 sock_client.close()
 
 
-# echo -n "STOR ~/Documents/onemore\r\n" | nc 127.0.0.1 21;
 # echo -n "LIST\r\n" | nc 127.0.0.1 21;
 # echo -n "DELE onemore\r\n" | nc 127.0.0.1 21;
 # echo -n "LIST\r\n" | nc 127.0.0.1 21;
