@@ -177,12 +177,42 @@ else:
 	print 'pass 10'
 
 
+sock_client.send('CWD /Users/loki/programming/assignment-network-programming/ftpserver\r\n')
+data = sock_client.recv(MAX_LENGTH)
+data = until_crlf(data)
+print data
+if data != 'success':
+	print 'test fail'
+	sys.exit()
+else:
+	print 'pass 11'
+
+
+sock_client.send('MKD /test2\r\n')
+data = sock_client.recv(MAX_LENGTH)
+data = until_crlf(data)
+print data
+if data != 'success':
+	print 'test fail'
+	sys.exit()
+else:
+	print 'pass 12'
+
+
+sock_client.send('NLST\r\n')
+data = sock_client.recv(MAX_LENGTH)
+data = until_crlf(data)
+print data
+if data != '., .., build, test, test2':
+	print 'test fail'
+	sys.exit()
+else:
+	print 'pass 13'
+
+
 sock_client.close()
 
 
-# echo -n "CWD /test\r\n" | nc 127.0.0.1 21;
-# echo -n "MKD /test2\r\n" | nc 127.0.0.1 21;
-# echo -n "NLST\r\n" | nc 127.0.0.1 21;
 # echo -n "RMD /test\r\n" | nc 127.0.0.1 21;
 # echo -n "RMD /test2\r\n" | nc 127.0.0.1 21;
 # echo -n "QUIT\r\n" | nc 127.0.0.1 21;
