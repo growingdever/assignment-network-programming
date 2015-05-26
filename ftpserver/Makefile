@@ -15,6 +15,7 @@ clean:
 	@- echo "cleaning::"
 	rm -rf $(PATH_BUILD)/*
 	rm -rf ./test
+	rm -rf ./test2
 	@- echo ""
 
 run:

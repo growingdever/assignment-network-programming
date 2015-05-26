@@ -22,6 +22,7 @@ int handle_socket(int);
 void handle_command_pwd(int, char*);
 void handle_command_cwd(int, char*);
 void handle_command_mkd(int, char*);
+void handle_command_rmd(int, char*);
 void handle_command_nlst(int, char*);
 void handle_command_list(int, char*);
 void handle_command_dele(int, char*);
@@ -101,6 +102,8 @@ int handle_socket(int sock) {
 		handle_command_cwd(sock, str);
 	} else if( STR_EQUAL(command, "MKD") ) {
 		handle_command_mkd(sock, str);
+	} else if( STR_EQUAL(command, "RMD") ) {
+		handle_command_rmd(sock, str);
 	} else if( STR_EQUAL(command, "NLST") ) {
 		handle_command_nlst(sock, str);
 	} else if( STR_EQUAL(command, "LIST") ) {
@@ -160,6 +163,29 @@ void handle_command_mkd(int sock, char* line) {
 
 		write(sock, response, strlen(response));
 	}
+}
+
+void handle_command_rmd(int sock, char* line) {
+	char *path = strtok(NULL, " \r\n");
+
+	char response[MAX_LENGTH] = { 0, };
+	if( rmdir(path) == 0 ) {
+		sprintf(response, "success\r\n");
+	} else {
+		switch(errno) {
+		case ENOTDIR:
+			sprintf(response, "fail : target file is not directory\r\n");
+			break;
+		case EEXIST:
+			sprintf(response, "fail : directory exist\r\n");
+			break;
+		case ENOTEMPTY:
+			sprintf(response, "fail : directory is not empty\r\n");
+			break;
+		}
+	}
+
+	write(sock, response, strlen(response));
 }
 
 void handle_command_nlst(int sock, char* line) {

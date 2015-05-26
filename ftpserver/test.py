@@ -210,6 +210,28 @@ else:
 	print 'pass 13'
 
 
+sock_client.send('RMD /Users/loki/programming/assignment-network-programming/ftpserver/test2\r\n')
+data = sock_client.recv(MAX_LENGTH)
+data = until_crlf(data)
+print data
+if data != 'success':
+	print 'test fail'
+	sys.exit()
+else:
+	print 'pass 14'
+
+
+sock_client.send('RMD /Users/loki/programming/assignment-network-programming/ftpserver/test\r\n')
+data = sock_client.recv(MAX_LENGTH)
+data = until_crlf(data)
+print data
+if 'fail' not in data:
+	print 'test fail'
+	sys.exit()
+else:
+	print 'pass 15'
+
+
 sock_client.close()
 
 
