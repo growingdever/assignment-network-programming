@@ -20,6 +20,8 @@ int init_listening_socket(struct sockaddr_in*, int);
 int handle_socket(int);
 void handle_command_pwd(int, char*);
 void handle_command_mkd(int, char*);
+void handle_command_nlst(int, char*);
+int is_file_for_dirent(struct dirent* dir);
 
 
 char WORKING_DIRECTORY[MAX_LENGTH];
@@ -83,6 +85,8 @@ int handle_socket(int sock) {
 		handle_command_pwd(sock, str);
 	} else if(STR_EQUAL(command, "MKD") ) {
 		handle_command_mkd(sock, str);
+	} else if(STR_EQUAL(command, "NLST") ) {
+		handle_command_nlst(sock, str);
 	}
 
 	return 1;
@@ -104,11 +108,11 @@ void handle_command_mkd(int sock, char* line) {
 	strcat(path, "/.");
 	strcat(path, target);
 
+	char response[MAX_LENGTH] = { 0, };
 	if( mkdir(path, 0755) == 0 ) {
-		char *response = "success";
+		sprintf(response, "success\r\n");
 		write(sock, response, strlen(response));
 	} else {
-		char response[MAX_LENGTH];
 		switch(errno) {
 		case EACCES:
 			sprintf(response, "fail : permission denied\r\n");
@@ -120,4 +124,38 @@ void handle_command_mkd(int sock, char* line) {
 
 		write(sock, response, strlen(response));
 	}
+}
+
+void handle_command_nlst(int sock, char* line) {
+	char response[MAX_LENGTH] = { 0, };
+
+	DIR *p_root_dir;
+	struct dirent *p_dir_node;
+	p_root_dir = opendir(WORKING_DIRECTORY);
+	if (p_root_dir != NULL)	{
+		while (1) {
+			p_dir_node = readdir (p_root_dir);
+			if( p_dir_node == NULL ) { 
+				break;
+			}
+
+			if( is_file_for_dirent(p_dir_node) ) {
+				continue;
+			}
+
+			strcat(response, p_dir_node->d_name);
+			strcat(response, ", ");
+		}
+		closedir (p_root_dir);
+
+		response[strlen(response) - 2] = 0;
+	} else {
+		strcat(response, "fail");
+	}
+
+	write(sock, response, strlen(response));
+}
+
+int is_file_for_dirent(struct dirent* dir) {
+	return dir->d_type == 0x8;
 }
