@@ -19,6 +19,7 @@
 int init_listening_socket(struct sockaddr_in*, int);
 int handle_socket(int);
 void handle_command_pwd(int, char*);
+void handle_command_cwd(int, char*);
 void handle_command_mkd(int, char*);
 void handle_command_nlst(int, char*);
 int is_file_for_dirent(struct dirent* dir);
@@ -83,6 +84,8 @@ int handle_socket(int sock) {
 	printf("command : %s\n", command);
 	if( STR_EQUAL(command, "PWD") ) {
 		handle_command_pwd(sock, str);
+	}  else if( STR_EQUAL(command, "CWD") ) {
+		handle_command_cwd(sock, str);
 	} else if(STR_EQUAL(command, "MKD") ) {
 		handle_command_mkd(sock, str);
 	} else if(STR_EQUAL(command, "NLST") ) {
@@ -97,8 +100,20 @@ void handle_command_pwd(int sock, char* line) {
 	getcwd(path, sizeof(path));
 
 	write(sock, path, strlen(path));
+}
 
-	printf("handle_command_pwd end\n");
+void handle_command_cwd(int sock, char* line) {
+	char response[MAX_LENGTH] = { 0, };
+
+	char *target = strtok(NULL, " \r\n");
+	if( chdir(target) == 0 ) {
+		sprintf(response, "success\r\n");
+		strcpy(WORKING_DIRECTORY, target);
+	} else {
+		sprintf(response, "file\r\n");
+	}
+
+	write(sock, response, strlen(response));
 }
 
 void handle_command_mkd(int sock, char* line) {
@@ -149,8 +164,9 @@ void handle_command_nlst(int sock, char* line) {
 		closedir (p_root_dir);
 
 		response[strlen(response) - 2] = 0;
+		strcat(response, "\r\n");
 	} else {
-		strcat(response, "fail");
+		strcat(response, "fail\r\n");
 	}
 
 	write(sock, response, strlen(response));

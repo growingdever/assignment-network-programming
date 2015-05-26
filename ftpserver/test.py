@@ -49,6 +49,17 @@ else:
 	print 'pass 3'
 
 
+sock_client.send('CWD /Users/loki/programming/assignment-network-programming/ftpserver/test\r\n')
+data = sock_client.recv(MAX_LENGTH)
+data = until_crlf(data)
+print data
+if data != 'success':
+	print 'test fail'
+	sys.exit()
+else:
+	print 'pass 4'
+
+
 sock_client.close()
 
 
