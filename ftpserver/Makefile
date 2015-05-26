@@ -14,6 +14,7 @@ main: main.o
 clean:
 	@- echo "cleaning::"
 	rm -rf $(PATH_BUILD)/*
+	rm -rf ./test
 	@- echo ""
 
 run:

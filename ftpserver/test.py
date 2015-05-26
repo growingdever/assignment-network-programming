@@ -15,11 +15,26 @@ except Exception as e:
 
 sock_client.send('PWD\r\n')
 data = sock_client.recv(MAX_LENGTH)
+print data
 if data != '/Users/loki/programming/assignment-network-programming/ftpserver':
 	print 'test fail'
 	sys.exit()
 else:
 	print 'pass 1'
+
+# raw_input("Press Enter to continue...")
+
+sock_client.send('MKD /test\r\n')
+data = sock_client.recv(MAX_LENGTH)
+print data.split('\n')[0]
+if data != 'success':
+	print 'test fail'
+	sys.exit()
+else:
+	print 'pass 2'
+
+
+sock_client.close()
 
 
 

@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <fcntl.h>
+#include <errno.h>
 #include "data_structure.h"
 #include "util.h"
 
@@ -17,6 +19,10 @@
 int init_listening_socket(struct sockaddr_in*, int);
 int handle_socket(int);
 void handle_command_pwd(int, char*);
+void handle_command_mkd(int, char*);
+
+
+char WORKING_DIRECTORY[MAX_LENGTH];
 
 
 int main(int argc, char* argv[]) {
@@ -27,18 +33,17 @@ int main(int argc, char* argv[]) {
 	bind(sock_listen, (struct sockaddr *) &servaddr, sizeof(servaddr));
 	listen(sock_listen, 10);
 
-	while(1) {
-		printf("read to accept %d\n", sock_listen);
-		int sock_client = accept(sock_listen, (struct sockaddr*) NULL, NULL);
-		printf("accepted %d\n", sock_client);
-		if( sock_client < 0 ) {
-			ERROR_LOGGING("failed to accept client socket")
-			continue;
-		}
+	int sock_client = accept(sock_listen, (struct sockaddr*) NULL, NULL);
+	if( sock_client < 0 ) {
+		ERROR_LOGGING("failed to accept client socket")
+		return -1;
+	}
 
+	getcwd(WORKING_DIRECTORY, sizeof(WORKING_DIRECTORY));
+
+	while(1) {
 		if( handle_socket(sock_client) < 0 ) {
 			ERROR_LOGGING("failed to handle request")
-			continue;
 		}
 	}
 
@@ -73,13 +78,12 @@ int handle_socket(int sock) {
 	}
 
 	char *command = strtok(str, " \r\n");
+	printf("command : %s\n", command);
 	if( STR_EQUAL(command, "PWD") ) {
 		handle_command_pwd(sock, str);
+	} else if(STR_EQUAL(command, "MKD") ) {
+		handle_command_mkd(sock, str);
 	}
-
-	shutdown(sock, SHUT_WR);
-	clear_recv_buffer(sock);
-	close(sock);
 
 	return 1;
 }
@@ -89,4 +93,31 @@ void handle_command_pwd(int sock, char* line) {
 	getcwd(path, sizeof(path));
 
 	write(sock, path, strlen(path));
+
+	printf("handle_command_pwd end\n");
+}
+
+void handle_command_mkd(int sock, char* line) {
+	char *target = strtok(NULL, " \r\n");
+	char path[MAX_LENGTH] = { 0, };
+	strcat(path, WORKING_DIRECTORY);
+	strcat(path, "/.");
+	strcat(path, target);
+
+	if( mkdir(path, 0755) == 0 ) {
+		char *response = "success";
+		write(sock, response, strlen(response));
+	} else {
+		char response[MAX_LENGTH];
+		switch(errno) {
+		case EACCES:
+			sprintf(response, "fail : permission denied\r\n");
+			break;
+		case EEXIST:
+			sprintf(response, "fail : file exist\r\n");
+			break;
+		}
+
+		write(sock, response, strlen(response));
+	}
 }
