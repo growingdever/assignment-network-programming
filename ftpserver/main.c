@@ -24,6 +24,7 @@ void handle_command_cwd(int, char*);
 void handle_command_mkd(int, char*);
 void handle_command_nlst(int, char*);
 void handle_command_list(int, char*);
+void handle_command_dele(int, char*);
 void handle_command_stor(int, char*);
 void handle_command_retr(int, char*);
 int is_file_for_dirent(struct dirent* dir);
@@ -104,6 +105,8 @@ int handle_socket(int sock) {
 		handle_command_nlst(sock, str);
 	} else if( STR_EQUAL(command, "LIST") ) {
 		handle_command_list(sock, str);
+	} else if( STR_EQUAL(command, "DELE") ) {
+		handle_command_dele(sock, str);
 	} else if( STR_EQUAL(command, "STOR") ) {
 		handle_command_stor(sock, str);
 	} else if( STR_EQUAL(command, "RETR") ) {
@@ -216,6 +219,25 @@ void handle_command_list(int sock, char* line) {
 		strcat(response, "\r\n");
 	} else {
 		strcat(response, "fail\r\n");
+	}
+
+	write(sock, response, strlen(response));
+}
+
+void handle_command_dele(int sock, char* line) {
+	char *target = strtok(NULL, " \r\n");
+	char path[MAX_LENGTH] = { 0, };
+	strcat(path, WORKING_DIRECTORY);
+	strcat(path, "/");
+	strcat(path, target);
+
+	printf("%s\n", path);
+
+	char response[MAX_LENGTH];
+	if( remove(path) == -1 ) {
+		sprintf(response, "fail\r\n");
+	} else {
+		sprintf(response, "success\r\n");
 	}
 
 	write(sock, response, strlen(response));

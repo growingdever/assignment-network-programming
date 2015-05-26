@@ -155,12 +155,31 @@ else:
 	print 'pass 8'
 
 
+sock_client.send('DELE %s\r\n' % filename2)
+data = sock_client.recv(MAX_LENGTH)
+data = until_crlf(data)
+print data
+if data != 'success':
+	print 'test fail'
+	sys.exit()
+else:
+	print 'pass 9'
+
+
+sock_client.send('LIST\r\n')
+data = sock_client.recv(MAX_LENGTH)
+data = until_crlf(data)
+print data
+if data == 'fail':
+	print 'test fail'
+	sys.exit()
+else:
+	print 'pass 10'
+
+
 sock_client.close()
 
 
-# echo -n "LIST\r\n" | nc 127.0.0.1 21;
-# echo -n "DELE onemore\r\n" | nc 127.0.0.1 21;
-# echo -n "LIST\r\n" | nc 127.0.0.1 21;
 # echo -n "CWD /test\r\n" | nc 127.0.0.1 21;
 # echo -n "MKD /test2\r\n" | nc 127.0.0.1 21;
 # echo -n "NLST\r\n" | nc 127.0.0.1 21;
