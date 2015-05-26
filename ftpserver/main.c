@@ -24,6 +24,7 @@ void handle_command_cwd(int, char*);
 void handle_command_mkd(int, char*);
 void handle_command_nlst(int, char*);
 void handle_command_stor(int, char*);
+void handle_command_retr(int, char*);
 int is_file_for_dirent(struct dirent* dir);
 
 
@@ -102,6 +103,8 @@ int handle_socket(int sock) {
 		handle_command_nlst(sock, str);
 	} else if( STR_EQUAL(command, "STOR") ) {
 		handle_command_stor(sock, str);
+	} else if( STR_EQUAL(command, "RETR") ) {
+		handle_command_retr(sock, str);
 	}
 
 	return 1;
@@ -192,7 +195,6 @@ void handle_command_stor(int sock, char* line) {
 	write(sock, response, strlen(response));
 
 	int sock_data_channel = accept(sock_listen_data, (struct sockaddr*) NULL, NULL);
-	printf("accept : %d\n", sock_data_channel);
 	if( sock_data_channel < 0 ) {
 		ERROR_LOGGING("failed to accept client socket")
 		return;
@@ -201,7 +203,6 @@ void handle_command_stor(int sock, char* line) {
 
 	char path[MAX_LENGTH] = { 0, };
 	sprintf(path, "%s/%s", WORKING_DIRECTORY, target);
-	printf("path : %s", path);
 	FILE *output = fopen(path, "wb");
 	if( ! output ) {
 
@@ -216,7 +217,39 @@ void handle_command_stor(int sock, char* line) {
 
 			fwrite(buffer, sizeof(char), numRead, output);
 		}
+		close(sock_data_channel);
 		fclose(output);
+	}
+}
+
+void handle_command_retr(int sock, char* line) {
+	char *target = strtok(NULL, " \r\n");
+
+	char response[MAX_LENGTH] = { 0, };
+	sprintf(response, "OK %d", PORT_FTP_DATA_TRANSFER);
+	write(sock, response, strlen(response));
+
+	int sock_data_channel = accept(sock_listen_data, (struct sockaddr*) NULL, NULL);
+	if( sock_data_channel < 0 ) {
+		ERROR_LOGGING("failed to accept client socket")
+		return;
+	}
+
+
+	char path[MAX_LENGTH] = { 0, };
+	sprintf(path, "%s/%s", WORKING_DIRECTORY, target);
+	FILE *input = fopen(path, "rb");
+	if( ! input ) {
+
+	} else {
+		char buffer[MAX_LENGTH] = { 0, };
+		while( !feof(input) ) {
+			memset(buffer, 0, sizeof(buffer));
+			int numRead = fread(buffer, sizeof(char), MAX_LENGTH, input);
+			write(sock_data_channel, buffer, numRead);
+		}
+		close(sock_data_channel);
+		fclose(input);
 	}
 }
 
