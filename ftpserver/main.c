@@ -55,17 +55,21 @@ int main(int argc, char* argv[]) {
 	bind(sock_listen_data, (struct sockaddr *) &servaddr_data, sizeof(servaddr_data));
 	listen(sock_listen_data, 10);
 
-	sock_client = accept(sock_listen_command, (struct sockaddr*) NULL, NULL);
-	if( sock_client < 0 ) {
-		ERROR_LOGGING("failed to accept client socket")
-		return -1;
-	}
 
-	getcwd(WORKING_DIRECTORY, sizeof(WORKING_DIRECTORY));
+	while(1) {
+		sock_client = accept(sock_listen_command, (struct sockaddr*) NULL, NULL);
+		if( sock_client < 0 ) {
+			ERROR_LOGGING("failed to accept client socket")
+			return -1;
+		}
 
-	while( !is_quit ) {
-		if( handle_socket(sock_client) < 0 ) {
-			ERROR_LOGGING("failed to handle request")
+		getcwd(WORKING_DIRECTORY, sizeof(WORKING_DIRECTORY));
+
+		is_quit = 0;
+		while( !is_quit ) {
+			if( handle_socket(sock_client) < 0 ) {
+				ERROR_LOGGING("failed to handle request")
+			}
 		}
 	}
 
