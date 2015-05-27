@@ -133,6 +133,7 @@ int handle_socket(int sock) {
 void handle_command_pwd(int sock, char* line) {
 	char path[MAX_LENGTH] = { 0, };
 	getcwd(path, sizeof(path));
+	strcat(path, "\r\n");
 
 	write(sock, path, strlen(path));
 }
@@ -276,7 +277,7 @@ void handle_command_stor(int sock, char* line) {
 	char *target = strtok(NULL, " \r\n");
 
 	char response[MAX_LENGTH] = { 0, };
-	sprintf(response, "OK %d", PORT_FTP_DATA_TRANSFER);
+	sprintf(response, "OK %d\r\n", PORT_FTP_DATA_TRANSFER);
 	write(sock, response, strlen(response));
 
 	int sock_data_channel = accept(sock_listen_data, (struct sockaddr*) NULL, NULL);
@@ -314,7 +315,7 @@ void handle_command_retr(int sock, char* line) {
 	char *target = strtok(NULL, " \r\n");
 
 	char response[MAX_LENGTH] = { 0, };
-	sprintf(response, "OK %d", PORT_FTP_DATA_TRANSFER);
+	sprintf(response, "OK %d\r\n", PORT_FTP_DATA_TRANSFER);
 	write(sock, response, strlen(response));
 
 	int sock_data_channel = accept(sock_listen_data, (struct sockaddr*) NULL, NULL);
