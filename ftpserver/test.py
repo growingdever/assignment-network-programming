@@ -232,9 +232,18 @@ else:
 	print 'pass 15'
 
 
+sock_client.send('QUIT\r\n')
+data = sock_client.recv(MAX_LENGTH)
+data = until_crlf(data)
+print data
+if data != 'bye':
+	print 'test fail'
+	sys.exit()
+else:
+	print 'pass 16'
+
+
 sock_client.close()
 
 
-# echo -n "RMD /test\r\n" | nc 127.0.0.1 21;
-# echo -n "RMD /test2\r\n" | nc 127.0.0.1 21;
 # echo -n "QUIT\r\n" | nc 127.0.0.1 21;

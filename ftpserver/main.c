@@ -28,12 +28,17 @@ void handle_command_list(int, char*);
 void handle_command_dele(int, char*);
 void handle_command_stor(int, char*);
 void handle_command_retr(int, char*);
+void handle_command_quit(int, char*);
+void build_absolute_path(char* dest, char* target);
 int is_file_for_dirent(struct dirent* dir);
 
 
 char WORKING_DIRECTORY[MAX_LENGTH];
 
-int sock_listen_command, sock_listen_data;
+int sock_client, 
+	sock_listen_command, 
+	sock_listen_data;
+int is_quit;
 
 int main(int argc, char* argv[]) {
 	// for command
@@ -50,7 +55,7 @@ int main(int argc, char* argv[]) {
 	bind(sock_listen_data, (struct sockaddr *) &servaddr_data, sizeof(servaddr_data));
 	listen(sock_listen_data, 10);
 
-	int sock_client = accept(sock_listen_command, (struct sockaddr*) NULL, NULL);
+	sock_client = accept(sock_listen_command, (struct sockaddr*) NULL, NULL);
 	if( sock_client < 0 ) {
 		ERROR_LOGGING("failed to accept client socket")
 		return -1;
@@ -58,7 +63,7 @@ int main(int argc, char* argv[]) {
 
 	getcwd(WORKING_DIRECTORY, sizeof(WORKING_DIRECTORY));
 
-	while(1) {
+	while( !is_quit ) {
 		if( handle_socket(sock_client) < 0 ) {
 			ERROR_LOGGING("failed to handle request")
 		}
@@ -114,6 +119,8 @@ int handle_socket(int sock) {
 		handle_command_stor(sock, str);
 	} else if( STR_EQUAL(command, "RETR") ) {
 		handle_command_retr(sock, str);
+	} else if( STR_EQUAL(command, "QUIT") ) {
+		handle_command_quit(sock, str);
 	}
 
 	return 1;
@@ -134,18 +141,15 @@ void handle_command_cwd(int sock, char* line) {
 		sprintf(response, "success\r\n");
 		strcpy(WORKING_DIRECTORY, target);
 	} else {
-		sprintf(response, "file\r\n");
+		sprintf(response, "fail\r\n");
 	}
 
 	write(sock, response, strlen(response));
 }
 
 void handle_command_mkd(int sock, char* line) {
-	char *target = strtok(NULL, " \r\n");
 	char path[MAX_LENGTH] = { 0, };
-	strcat(path, WORKING_DIRECTORY);
-	strcat(path, "/.");
-	strcat(path, target);
+	build_absolute_path(path, strtok(NULL, " \r\n"));
 
 	char response[MAX_LENGTH] = { 0, };
 	if( mkdir(path, 0755) == 0 ) {
@@ -251,13 +255,8 @@ void handle_command_list(int sock, char* line) {
 }
 
 void handle_command_dele(int sock, char* line) {
-	char *target = strtok(NULL, " \r\n");
 	char path[MAX_LENGTH] = { 0, };
-	strcat(path, WORKING_DIRECTORY);
-	strcat(path, "/");
-	strcat(path, target);
-
-	printf("%s\n", path);
+	build_absolute_path(path, strtok(NULL, " \r\n"));
 
 	char response[MAX_LENGTH];
 	if( remove(path) == -1 ) {
@@ -333,6 +332,25 @@ void handle_command_retr(int sock, char* line) {
 		close(sock_data_channel);
 		fclose(input);
 	}
+}
+
+void handle_command_quit(int sock, char* line) {
+	is_quit = 1;
+
+	char response[MAX_LENGTH] = { 0, };
+	sprintf(response, "bye");
+	write(sock, response, strlen(response));
+
+	shutdown(sock_client, SHUT_WR);
+	clear_recv_buffer(sock_client);
+	close(sock_client);
+}
+
+
+void build_absolute_path(char* dest, char* target) {
+	strcat(dest, WORKING_DIRECTORY);
+	strcat(dest, "/");
+	strcat(dest, target);
 }
 
 int is_file_for_dirent(struct dirent* dir) {
