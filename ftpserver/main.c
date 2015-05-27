@@ -286,7 +286,8 @@ void handle_command_stor(int sock, char* line) {
 	sprintf(path, "%s/%s", WORKING_DIRECTORY, target);
 	FILE *output = fopen(path, "wb");
 	if( ! output ) {
-
+		sprintf(response, "fail to open file");
+		write(sock, response, strlen(response));
 	} else {
 		char buffer[MAX_LENGTH] = { 0, };
 		while(1) {
@@ -298,9 +299,11 @@ void handle_command_stor(int sock, char* line) {
 
 			fwrite(buffer, sizeof(char), numRead, output);
 		}
-		close(sock_data_channel);
-		fclose(output);
+		
 	}
+
+	fclose(output);
+	close(sock_data_channel);
 }
 
 void handle_command_retr(int sock, char* line) {
@@ -321,7 +324,8 @@ void handle_command_retr(int sock, char* line) {
 	sprintf(path, "%s/%s", WORKING_DIRECTORY, target);
 	FILE *input = fopen(path, "rb");
 	if( ! input ) {
-
+		sprintf(response, "fail to open file");
+		write(sock, response, strlen(response));
 	} else {
 		char buffer[MAX_LENGTH] = { 0, };
 		while( !feof(input) ) {
@@ -329,9 +333,10 @@ void handle_command_retr(int sock, char* line) {
 			int numRead = fread(buffer, sizeof(char), MAX_LENGTH, input);
 			write(sock_data_channel, buffer, numRead);
 		}
-		close(sock_data_channel);
-		fclose(input);
 	}
+
+	close(sock_data_channel);
+	fclose(input);
 }
 
 void handle_command_quit(int sock, char* line) {
