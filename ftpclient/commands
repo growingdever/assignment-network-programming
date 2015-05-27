@@ -1,0 +1,16 @@
+PWD
+MKD /test
+NLST
+CWD /Users/loki/programming/assignment-network-programming/ftpserver/test
+STOR screenshot.png /Users/loki/Documents/screenshot.png
+RETR screenshot.png
+STOR hello.py /Users/loki/Documents/hello.py
+LIST
+DELE hello.py
+LIST
+CWD /Users/loki/programming/assignment-network-programming/ftpserver
+MKD /test2
+NLST
+RMD /Users/loki/programming/assignment-network-programming/ftpserver/test2
+RMD /Users/loki/programming/assignment-network-programming/ftpserver/test
+QUIT
