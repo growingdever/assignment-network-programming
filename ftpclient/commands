@@ -1,12 +1,14 @@
 PWD
 MKD /test
+MKD /test
 NLST
 CWD /Users/loki/programming/assignment-network-programming/ftpserver/test
-STOR screenshot.png /Users/loki/Documents/screenshot.png
+STOR screenshot.png ./files/screenshot.png
 RETR screenshot.png
-STOR hello.py /Users/loki/Documents/hello.py
+STOR commands ./commands
+STOR commands2 ./commands
 LIST
-DELE hello.py
+DELE commands
 LIST
 CWD /Users/loki/programming/assignment-network-programming/ftpserver
 MKD /test2

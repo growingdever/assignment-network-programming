@@ -125,6 +125,8 @@ int handle_socket(int sock) {
 		handle_command_retr(sock, str);
 	} else if( STR_EQUAL(command, "QUIT") ) {
 		handle_command_quit(sock, str);
+	} else {
+		write(sock, "not supported command\r\n", strlen("not supported command\r\n"));
 	}
 
 	return 1;
@@ -132,7 +134,7 @@ int handle_socket(int sock) {
 
 void handle_command_pwd(int sock, char* line) {
 	char path[MAX_LENGTH] = { 0, };
-	getcwd(path, sizeof(path));
+	strcat(path, WORKING_DIRECTORY);
 	strcat(path, "\r\n");
 
 	write(sock, path, strlen(path));
